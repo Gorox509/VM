@@ -1,38 +1,9 @@
-#include <cctype>
-#include <stdio.h>
 #include <sys/stat.h>
-#include <stdlib.h>
 #include <assert.h>
+#include <ctype.h>
 
-#include "stack/stack.hpp"
-
-enum VM_errors {
-    VM_OK = 0,
-    VM_NO_COMMAND_FOUND,
-
-};
-
-enum VM_commands {
-    PUSH = 1,
-    ADD,
-    SUB,
-    MULT,
-    DIV,
-    OUT,
-    HLT,
-};
-
-int vm_do_program(struct stack *stk, char *buf);
-int vm_do_instruction(struct stack *stk, char *buf, size_t *PC);
-int vm_handle_error(int error);
-int vm_read_file_to_buffer(FILE *fp, char *buffer, size_t block_size);
-
-void vm_do_push(struct stack *stk, stack_elem_t value, ssize_t *err);
-void vm_do_out(struct stack *stk);
-void vm_do_add(struct stack *stk);
-void vm_do_sub(struct stack *stk);
-void vm_do_mult(struct stack *stk);
-void vm_do_div(struct stack *stk);
+#include "VM.hpp"
+#include "VM_commands.hpp"
 
 
 int main(int argc, char *argv[]) {
@@ -51,10 +22,12 @@ int main(int argc, char *argv[]) {
 
     if (fp == NULL) {
         fprintf(stderr, "Error: Can not open the file\n");
+        return 1;
     }
+
     char *buf = (char *) malloc((size_t) file_stat.st_size + 2);
     if (buf == NULL) {
-        fprintf(stderr, "Error: failed to allocate memory\n");
+        fprintf(stderr, "Error: fail to allocate memory\n");
         return 1;
     }
 
@@ -63,7 +36,7 @@ int main(int argc, char *argv[]) {
 
     struct stack *stk = (struct stack *) malloc(sizeof(struct stack));
     if (stk == NULL) {
-        fprintf(stderr, "Error: failed to allocate memory\n");
+        fprintf(stderr, "Error: fail to allocate memory\n");
         return 1;
     }
     *stk = {};

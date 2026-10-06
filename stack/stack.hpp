@@ -24,8 +24,6 @@ typedef double stack_elem_t;
 #ifndef STACK_DEPENDENCIES
 #define STACK_DEPENDENCIES
 #include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
 #endif
 
 

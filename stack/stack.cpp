@@ -7,6 +7,9 @@
 #define RED "\033[31m"
 #define BASE_CLR "\033[0m"
 
+#include <assert.h>
+#include <stdio.h>
+
 
 static ssize_t stack_apply_error_and_dump
                             (struct         stack *stk,       ssize_t      err_code,    const char *err_msg);

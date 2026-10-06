@@ -16,12 +16,19 @@ CFLAGS=-ggdb3 -std=c++17 -Wall -Wextra -Weffc++ -Waggressive-loop-optimizations 
 DEFINES=-D NDEBUG -D HASH_PROT -D CANARY_PROT -D STACK_DEBUG
 
 
-all: stack.o VM
+all:
+
+VM: stack.o
+	@$(CC) -c $(CFLAGS) $(DEFINES) VM.cpp -o VM.o
 	@$(CC) $(CFLAGS) $(DEFINES) VM.o stack.o -o vm
 	@rm -f VM.o stack.o
+
+Compiler: compiler.o
+	@$(CC) $(CFALGS) $(DEFINES) compiler.o -o compiler
+	@rm -f compiler.o
 
 stack.o:
 	@$(CC) -c $(CFLAGS) $(DEFINES) stack/stack.cpp -o stack.o
 
-VM:
-	@$(CC) -c $(CFLAGS) $(DEFINES) VM.cpp -o VM.o
+compiler.o:
+	@$(CC) -c $(CFALGS) $(DEFINES) compiler.cpp -o compiler.o
