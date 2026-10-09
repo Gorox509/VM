@@ -1,7 +1,8 @@
 #ifndef STACK_H
 #define STACK_H
 
-typedef double stack_elem_t;
+typedef int stack_elem_t;
+#define ELEM_SPEC "d"
 
 #ifdef STACK_DEBUG
 #define ON_DEBUG(...) __VA_ARGS__

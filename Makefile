@@ -13,7 +13,7 @@ CFLAGS=-ggdb3 -std=c++17 -Wall -Wextra -Weffc++ -Waggressive-loop-optimizations 
 -flto-odr-type-merging -fno-omit-frame-pointer -pie -fPIE -Werror=vla \
 -fsanitize=address,leak,alignment,bool,bounds,enum,float-cast-overflow,float-divide-by-zero,integer-divide-by-zero,nonnull-attribute,null,object-size,return,returns-nonnull-attribute,shift,signed-integer-overflow,undefined,unreachable,vla-bound,vptr
 
-DEFINES=-D NDEBUG -D HASH_PROT -D CANARY_PROT -D STACK_DEBUG
+DEFINES=-D HASH_PROT -D CANARY_PROT -D STACK_DEBUG
 
 
 all:

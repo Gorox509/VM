@@ -424,15 +424,15 @@ void stack_dump(const struct stack *const stk) {
         size_t max_size = stk->size < stk->capacity ? stk->capacity : stk->size;
         size_t min_size = stk->size > stk->capacity ? stk->capacity : stk->size;
 
-        ON_CANARY_PROT(fprintf(stderr, "\t\t  data[%lu] = % lg;\texpected canary = %lg\n", 0LU, stk->data[0], GET_DATA_CANARY(stack_elem_t, &stk->data[0]));)
+        ON_CANARY_PROT(fprintf(stderr, "\t\t  data[%lu] = % " ELEM_SPEC ";\texpected canary = %" ELEM_SPEC "\n", 0LU, stk->data[0], GET_DATA_CANARY(stack_elem_t, &stk->data[0]));)
         for (size_t i = 0 ON_CANARY_PROT(+1); i < min_size ON_CANARY_PROT(+1); ++i) {
-            fprintf(stderr, "\t\t* data[%lu] = % lg\n", i, stk->data[i]);
+            fprintf(stderr, "\t\t* data[%lu] = % " ELEM_SPEC "\n", i, stk->data[i]);
         }
 
         for (size_t i = min_size ON_CANARY_PROT(+1); i < max_size ON_CANARY_PROT(+1); ++i) {
-            fprintf(stderr, "\t\t  data[%lu] = % lg\n", i, stk->data[i]);
+            fprintf(stderr, "\t\t  data[%lu] = % " ELEM_SPEC "\n", i, stk->data[i]);
         }
-        ON_CANARY_PROT(fprintf(stderr, "\t\t  data[%lu] = % lg;\texpected canary = %lg\n", max_size + 1, stk->data[max_size + 1], GET_DATA_CANARY(stack_elem_t, &stk->data[max_size + 1]));)
+        ON_CANARY_PROT(fprintf(stderr, "\t\t  data[%lu] = % " ELEM_SPEC ";\texpected canary = %" ELEM_SPEC "\n", max_size + 1, stk->data[max_size + 1], GET_DATA_CANARY(stack_elem_t, &stk->data[max_size + 1]));)
     }
 
     fprintf(stderr, "\n\n");

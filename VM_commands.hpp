@@ -5,7 +5,7 @@ enum VM_commands {
     PUSH = 1,
     ADD,
     SUB,
-    MULT,
+    MUL,
     DIV,
     OUT,
     HLT,
