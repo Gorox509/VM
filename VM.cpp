@@ -185,7 +185,7 @@ int vm_processor_dump(struct VM_processor *proc) {
             fprintf(stderr, "%3d,", proc->code[i]);
         }
         fprintf(stderr, "]\n");
-        for (int i = 0; i < proc->PC && i < proc->code_len; ++i) fprintf(stderr, "    ");
+        for (int i = -1; i < proc->PC && i < proc->code_len; ++i) fprintf(stderr, "    ");
         fprintf(stderr, "^\n");
     }
 
@@ -227,6 +227,7 @@ int vm_do_program(struct VM_processor *proc) {
         if (err != VM_OK)
             vm_handle_error(proc, err);
 
+        proc->PC++;
     }
     return err;
 }
@@ -241,10 +242,10 @@ int vm_do_instruction(struct VM_processor *proc) {
     UPDATE_STACK_DEBUG(proc->stack)
 
     stack_elem_t arg = 0;
-    int cmd = proc->code[proc->PC++];
+    int cmd = proc->code[proc->PC];
 
     if (cmd == PUSH || cmd == POPR || cmd == PUSHR)
-        arg = proc->code[proc->PC++];
+        arg = proc->code[++proc->PC];
 
     ssize_t stack_err = STACK_OK;
 
