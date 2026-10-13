@@ -12,6 +12,17 @@ enum VM_commands {
 
     PUSHR,
     POPR,
+    JMP,
+    JA,
+    JAE,
+    JB,
+    JBE,
+    JE,
+    JNE,
+
+    IN,
+    CALL,
+    RET,
 };
 
 #endif

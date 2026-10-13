@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
@@ -58,6 +57,7 @@ struct VM_processor *vm_make_processor(size_t len) {
     assert(proc != NULL);
 
     vm_make_proc_stack(proc);
+    vm_make_proc_call_stack(proc);
 
     vm_make_proc_code(proc, len);
 
@@ -95,6 +95,21 @@ int vm_make_proc_stack(struct VM_processor *proc) {
     }
     *proc->stack = {};
     stack_constructor(proc->stack, 8 ON_DEBUG(, __FILE_NAME__, __LINE__, "(no name)"));
+
+    return VM_OK;
+}
+
+
+int vm_make_proc_call_stack(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    proc->call_stack = (struct stack *) malloc(sizeof(struct stack));
+    if (proc->call_stack == NULL) {
+        fprintf(stderr, "Error: fail to allocate memory\n");
+        exit(1);
+    }
+    *proc->call_stack = {};
+    stack_constructor(proc->call_stack, 8 ON_DEBUG(, __FILE_NAME__, __LINE__, "(no name)"));
 
     return VM_OK;
 }
@@ -152,6 +167,8 @@ int vm_processor_destructor(struct VM_processor *proc) {
 
     stack_destructor(proc->stack);
     free(proc->stack);
+    stack_destructor(proc->call_stack);
+    free(proc->call_stack);
     free(proc->code);
 
     free(proc->regs);
@@ -244,12 +261,15 @@ int vm_do_instruction(struct VM_processor *proc) {
     stack_elem_t arg = 0;
     int cmd = proc->code[proc->PC];
 
-    if (cmd == PUSH || cmd == POPR || cmd == PUSHR)
+    if (cmd == PUSH || cmd == POPR || cmd == PUSHR || cmd == JMP || cmd == JA || cmd == JAE || cmd == JB || cmd == JBE || cmd == JE || cmd == JNE || cmd == CALL)
         arg = proc->code[++proc->PC];
 
     ssize_t stack_err = STACK_OK;
 
     switch (cmd) {
+        case IN:
+            return vm_do_in(proc);
+
         case PUSH:
             return vm_do_push(proc, arg, &stack_err);
 
@@ -276,6 +296,28 @@ int vm_do_instruction(struct VM_processor *proc) {
 
         case HLT:
             return VM_HALT;
+
+        case CALL:
+            return vm_do_call(proc, arg);
+
+        case RET:
+            return vm_do_ret(proc);
+
+        case JMP:
+            return vm_do_jump_if(proc, arg, compare_always);
+        case JA:
+            return vm_do_jump_if(proc, arg, compare_above);
+        case JAE:
+            return vm_do_jump_if(proc, arg, compare_above_or_equal);
+        case JB:
+            return vm_do_jump_if(proc, arg, compare_below);
+        case JBE:
+            return vm_do_jump_if(proc, arg, compare_below_or_equal);
+        case JE:
+            return vm_do_jump_if(proc, arg, compare_equal);
+        case JNE:
+            return vm_do_jump_if(proc, arg, compare_not_equal);
+
 
         default:
             return VM_NO_COMMAND_FOUND;
@@ -509,4 +551,118 @@ int vm_do_div(struct VM_processor *proc) {
     stack_push(proc->stack, val1 / val2, &err);
 
     return VM_OK;
+}
+
+
+int vm_do_jump_if(struct VM_processor *proc, int arg, int (*compare_for_jump)(stack_elem_t *, stack_elem_t *)) {
+    assert(proc != NULL);
+    assert(compare_for_jump != NULL);
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+
+    ssize_t err = STACK_OK;
+    stack_elem_t val1 = 0, val2 = 0;
+
+    stack_pop(proc->stack, &val1, &err);
+    stack_pop(proc->stack, &val2, &err);
+
+    if (compare_for_jump(&val1, &val2))
+        proc->PC = arg;
+
+    return VM_OK;
+}
+
+
+int vm_do_in(struct VM_processor *proc) {
+    assert(proc != NULL);
+    assert(proc->stack != NULL);
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+
+    stack_elem_t val = 0;
+    ssize_t err = STACK_OK;
+
+    scanf("%" ELEM_SPEC, &val);
+
+    stack_push(proc->stack, val, &err);
+
+    return VM_OK;
+}
+
+
+int vm_do_call(struct VM_processor *proc, int value) {
+    assert(proc != NULL);
+    assert(proc->stack != NULL);
+    assert(proc->call_stack != NULL);
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+    UPDATE_STACK_DEBUG(proc->call_stack)
+
+    ssize_t call_err = STACK_OK;
+
+    stack_push(proc->call_stack, proc->PC, &call_err);
+
+    proc->PC = value;
+
+    return VM_OK;
+}
+
+
+int vm_do_ret(struct VM_processor *proc) {
+    assert(proc != NULL);
+    assert(proc->stack != NULL);
+    assert(proc->call_stack != NULL);
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+    UPDATE_STACK_DEBUG(proc->call_stack)
+
+    ssize_t call_err = STACK_OK;
+
+    stack_pop(proc->call_stack, &proc->PC, &call_err);
+
+    return VM_OK;
+}
+
+
+
+int compare_always(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return 1;
+}
+
+int compare_above(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return *val1 > *val2;
+}
+
+int compare_above_or_equal(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return *val1 >= *val2;
+}
+
+int compare_below(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return *val1 < *val2;
+}
+
+int compare_below_or_equal(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return *val1 <= *val2;
+}
+
+int compare_equal(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return *val1 == *val2;
+}
+
+int compare_not_equal(stack_elem_t *val1, stack_elem_t *val2) {
+    assert(val1 != NULL);
+    assert(val2 != NULL);
+    return *val1 != *val2;
 }

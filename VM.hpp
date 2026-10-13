@@ -38,6 +38,8 @@ struct VM_processor {
 
     struct VM_registers *regs = NULL;
 
+    struct stack *call_stack = NULL;
+
     ON_VM_DEBUG(struct VM_error *error;)
 };
 
@@ -56,15 +58,16 @@ struct VM_error {
 )
 
 
-struct VM_processor *vm_make_processor(     size_t size);
+struct VM_processor *vm_make_processor(         size_t size);
 struct VM_processor *vm_make_proc_core();
-int                  vm_make_proc_stack(    struct VM_processor *proc);
-int                  vm_make_proc_code(     struct VM_processor *proc, size_t len);
-int                  vm_make_proc_regs(     struct VM_processor *proc);
-ON_VM_DEBUG(int vm_make_proc_error_struct(  struct VM_processor *proc);)
+int                  vm_make_proc_stack(        struct VM_processor *proc);
+int                  vm_make_proc_call_stack(   struct VM_processor *proc);
+int                  vm_make_proc_code(         struct VM_processor *proc, size_t len);
+int                  vm_make_proc_regs(         struct VM_processor *proc);
+ON_VM_DEBUG(int vm_make_proc_error_struct(      struct VM_processor *proc);)
 
-int vm_processor_destructor(                struct VM_processor *proc);
-int vm_processor_dump(                      struct VM_processor *proc);
+int vm_processor_destructor(                    struct VM_processor *proc);
+int vm_processor_dump(                          struct VM_processor *proc);
 
 void put_divisor(FILE *fp);
 
@@ -84,6 +87,22 @@ int vm_do_add(      struct VM_processor *proc);
 int vm_do_sub(      struct VM_processor *proc);
 int vm_do_mult(     struct VM_processor *proc);
 int vm_do_div(      struct VM_processor *proc);
+
+int vm_do_jump_if(  struct VM_processor *proc, int arg,
+                    int (*compare_for_jump)(stack_elem_t *, stack_elem_t *));
+
+int vm_do_in(       struct VM_processor *proc);
+int vm_do_call(     struct VM_processor *proc, int value);
+int vm_do_ret(      struct VM_processor *proc);
+
+
+int compare_always(         stack_elem_t *val1, stack_elem_t *val2);
+int compare_above(          stack_elem_t *val1, stack_elem_t *val2);
+int compare_above_or_equal( stack_elem_t *val1, stack_elem_t *val2);
+int compare_below(          stack_elem_t *val1, stack_elem_t *val2);
+int compare_below_or_equal( stack_elem_t *val1, stack_elem_t *val2);
+int compare_equal(          stack_elem_t *val1, stack_elem_t *val2);
+int compare_not_equal(      stack_elem_t *val1, stack_elem_t *val2);
 
 
 #endif
