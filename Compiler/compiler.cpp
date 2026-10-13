@@ -1,6 +1,4 @@
 #include "compiler.hpp"
-#include "VM_commands.hpp"
-#include <cstdio>
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <assert.h>

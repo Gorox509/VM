@@ -1,7 +1,7 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "VM_commands.hpp"
+#include "../VM_commands.hpp"
 
 #include <stdio.h>
 

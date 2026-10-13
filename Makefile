@@ -18,17 +18,31 @@ DEFINES=-D HASH_PROT -D CANARY_PROT -D STACK_DEBUG -D VM_DEBUG
 
 all:
 
-VM: stack.o
-	@$(CC) -c $(CFLAGS) $(DEFINES) VM.cpp -o VM.o
-	@$(CC) $(CFLAGS) $(DEFINES) VM.o stack.o -o vm
-	@rm -f VM.o stack.o
+VM: VM.o stack.o comparators.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
+	@$(CC) $(CFLAGS) $(DEFINES) VM.o stack.o comparators.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o -o vm.out
+	@rm -f VM.o stack.o comparators.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
 
 Compiler: compiler.o
 	@$(CC) $(CFALGS) $(DEFINES) compiler.o -o compiler
 	@rm -f compiler.o
 
+VM.o:
+	@$(CC) -c $(CFLAGS) $(DEFINES) VM/VM.cpp -o VM.o
+
 stack.o:
 	@$(CC) -c $(CFLAGS) $(DEFINES) stack/stack.cpp -o stack.o
+
+comparators.o:
+	@$(CC) -c $(CFLAGS) $(DEFINES) VM/comparators.cpp -o comparators.o
+
+VM_command_funcs.o:
+	@$(CC) -c $(CFLAGS) $(DEFINES) VM/VM_command_funcs.cpp -o VM_command_funcs.o
+
+VM_proc_make_funcs.o:
+	@$(CC) -c $(CFLAGS) $(DEFINES) VM/VM_proc_make_funcs.cpp -o VM_proc_make_funcs.o
+
+VM_reading.o:
+	@$(CC) -c $(CFLAGS) $(DEFINES) VM/VM_reading.cpp -o VM_reading.o
 
 compiler.o:
 	@$(CC) -c $(CFALGS) $(DEFINES) compiler.cpp -o compiler.o
