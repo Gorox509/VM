@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
@@ -53,50 +54,107 @@ int main(int argc, char *argv[]) {
 
 
 struct VM_processor *vm_make_processor(size_t len) {
-    struct VM_processor *proc = (struct VM_processor *) malloc(sizeof(VM_processor));
-    if (proc == NULL) {
-        fprintf(stderr, "Error: failed to allocate memory\n");
-        exit(1);
-    }
-    *proc = {};
-    proc->stack = (struct stack *) malloc(sizeof(struct stack));
-    if (proc->stack == NULL) {
-        fprintf(stderr, "Error: fail to allocate memory\n");
-        exit(1);
-    }
-    *proc->stack = {};
-    stack_constructor(proc->stack, 10 ON_DEBUG(, __FILE_NAME__, __LINE__, "(no name)"));
-    proc->code = (int *) calloc(len, sizeof(int));
-    if (proc->code == NULL) {
-        fprintf(stderr, "Error: failed to allocate memory\n");
-        exit(1);
-    }
-    proc->PC = 0;
-    proc->code_len = 0;
+    struct VM_processor *proc = vm_make_proc_core();
+    assert(proc != NULL);
+
+    vm_make_proc_stack(proc);
+
+    vm_make_proc_code(proc, len);
+
+    vm_make_proc_regs(proc);
 
     ON_VM_DEBUG(
-        proc->error = (struct VM_error *) malloc(sizeof(struct VM_error));
-        if (proc->error == NULL) {
-            fprintf(stderr, "Error: failed to allocate memory for error structure");
-            exit(1);
-        }
-        *proc->error = {};
-        proc->error->last_called = __func__;
-        proc->error->filename = __FILE_NAME__;
+        vm_make_proc_error_struct(proc);
     )
     UPDATE_VM_DEBUG(proc)
     return proc;
 }
 
 
+struct VM_processor *vm_make_proc_core() {
+    struct VM_processor *proc = (struct VM_processor *) malloc(sizeof(VM_processor));
+    if (proc == NULL) {
+        fprintf(stderr, "Error: failed to allocate memory\n");
+        exit(1);
+    }
+    *proc = {};
+    proc->PC = 0;
+    proc->code_len = 0;
+
+    return proc;
+}
+
+
+int vm_make_proc_stack(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    proc->stack = (struct stack *) malloc(sizeof(struct stack));
+    if (proc->stack == NULL) {
+        fprintf(stderr, "Error: fail to allocate memory\n");
+        exit(1);
+    }
+    *proc->stack = {};
+    stack_constructor(proc->stack, 8 ON_DEBUG(, __FILE_NAME__, __LINE__, "(no name)"));
+
+    return VM_OK;
+}
+
+
+int vm_make_proc_code(struct VM_processor *proc, size_t len) {
+    assert(proc != NULL);
+
+    proc->code = (int *) calloc(len, sizeof(int));
+    if (proc->code == NULL) {
+        fprintf(stderr, "Error: failed to allocate memory\n");
+        exit(1);
+    }
+
+    return VM_OK;
+}
+
+
+int vm_make_proc_regs(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    proc->regs = (struct VM_registers *) malloc(sizeof(VM_registers));
+    if (proc->regs == NULL) {
+        fprintf(stderr, "Error: failed to allocate memory\n");
+        exit(1);
+    }
+    *proc->regs = {};
+
+    return VM_OK;
+}
+
+
+ON_VM_DEBUG(
+int vm_make_proc_error_struct(struct VM_processor *proc) {
+    assert(proc != NULL);
+    proc->error = (struct VM_error *) malloc(sizeof(struct VM_error));
+    if (proc->error == NULL) {
+        fprintf(stderr, "Error: failed to allocate memory for error structure");
+        exit(1);
+    }
+    *proc->error = {};
+    proc->error->last_called = __func__;
+    proc->error->filename = __FILE_NAME__;
+
+    return VM_OK;
+}
+)
+
+
 int vm_processor_destructor(struct VM_processor *proc) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     assert(proc->code != NULL);
+    assert(proc->regs != NULL);
 
     stack_destructor(proc->stack);
     free(proc->stack);
     free(proc->code);
+
+    free(proc->regs);
 
     ON_VM_DEBUG(
         free(proc->error);
@@ -128,13 +186,27 @@ int vm_processor_dump(struct VM_processor *proc) {
         }
         fprintf(stderr, "]\n");
         for (int i = 0; i < proc->PC && i < proc->code_len; ++i) fprintf(stderr, "    ");
-        fputc('^', stderr);
+        fprintf(stderr, "^\n");
     }
+
+    fprintf(stderr, "Register values:\n");
+
+    for (int i = 0; i < proc->regs->len; ++i) {
+        fprintf(stderr, "register r%dx: 0x%08x\n", i + 1, *((unsigned int *) (proc->regs->regs_arr + i)));
+    }
+
     stack_dump(proc->stack);
 
     return VM_OK;
 }
 
+
+void put_divisor(FILE *fp) {
+    assert(fp != NULL);
+
+    fprintf(fp, "======================================================================"
+                "==============================\n");
+}
 
 
 int vm_do_program(struct VM_processor *proc) {
@@ -171,35 +243,35 @@ int vm_do_instruction(struct VM_processor *proc) {
     stack_elem_t arg = 0;
     int cmd = proc->code[proc->PC++];
 
-    if (cmd == PUSH)
+    if (cmd == PUSH || cmd == POPR || cmd == PUSHR)
         arg = proc->code[proc->PC++];
 
     ssize_t stack_err = STACK_OK;
 
     switch (cmd) {
         case PUSH:
-            vm_do_push(proc, arg, &stack_err);
-            return VM_OK;
+            return vm_do_push(proc, arg, &stack_err);
+
+        case PUSHR:
+            return vm_do_push_r(proc, arg, &stack_err);
+
+        case POPR:
+            return vm_do_pop_r(proc, arg, &stack_err);
 
         case OUT:
-            vm_do_out(proc);
-            return VM_OK;
+            return vm_do_out(proc, &stack_err);
 
         case ADD:
-            vm_do_add(proc);
-            return VM_OK;
+            return vm_do_add(proc);
 
         case SUB:
-            vm_do_sub(proc);
-            return VM_OK;
+            return vm_do_sub(proc);
 
         case MUL:
-            vm_do_mult(proc);
-            return VM_OK;
+            return vm_do_mult(proc);
 
         case DIV:
-            vm_do_div(proc);
-            return VM_OK;
+            return vm_do_div(proc);
 
         case HLT:
             return VM_HALT;
@@ -213,8 +285,10 @@ int vm_do_instruction(struct VM_processor *proc) {
 
 
 int vm_handle_error(struct VM_processor *proc, int error) {
-    if (error != VM_OK)
+    if (error != VM_OK) {
+        put_divisor(stderr);
         fprintf(stderr, RED "Runtime error: ");
+    }
 
     switch (error) {
         case VM_NO_COMMAND_FOUND:
@@ -226,7 +300,15 @@ int vm_handle_error(struct VM_processor *proc, int error) {
             break;
 
         case VM_ZERO_PTR:
-            fprintf(stderr, "Virtual processor structure pointer is zero");
+            fprintf(stderr, "Virtual processor structure pointer is zero\n");
+            break;
+
+        case VM_WRONG_REGISTER_CODE:
+            fprintf(stderr, "Wrong register code\n");
+            break;
+
+        case VM_DIV_BY_ZERO:
+            fprintf(stderr, "Error: dividing by zero\n");
             break;
 
         default:
@@ -235,6 +317,7 @@ int vm_handle_error(struct VM_processor *proc, int error) {
     fprintf(stderr, BASE_CLR);
     if (error != VM_OK) {
         vm_processor_dump(proc);
+        put_divisor(stderr);
         exit(1);
     }
 
@@ -287,31 +370,72 @@ int vm_translate_buffer_to_code(struct VM_processor *proc, char *buf, size_t siz
 }
 
 
-void vm_do_push(struct VM_processor *proc, stack_elem_t value, ssize_t *err) {
+int vm_do_push(struct VM_processor *proc, stack_elem_t value, ssize_t *err) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     assert(err != NULL);
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
     stack_push(proc->stack, value, err);
+
+    return VM_OK;
 }
 
 
-void vm_do_out(struct VM_processor *proc) {
+int vm_do_push_r(struct VM_processor *proc, int reg_code, ssize_t *err) {
+    assert(proc != NULL);
+    assert(proc->stack != NULL);
+    assert(proc->regs !=  NULL);
+    assert(err != NULL);
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+
+    if (proc->regs->len < reg_code - 1 || reg_code <= 0) {
+        return VM_WRONG_REGISTER_CODE;
+    }
+
+    stack_elem_t reg_val = proc->regs->regs_arr[reg_code - 1];
+
+    stack_push(proc->stack, reg_val, err);
+
+    return VM_OK;
+}
+
+
+int vm_do_out(struct VM_processor *proc, ssize_t *stack_err) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
     stack_elem_t value = 0;
-    ssize_t err = STACK_OK;
 
-    stack_pop(proc->stack, &value, &err);
-    stack_push(proc->stack, value, &err);
-    fprintf(stdout, "%d\n", value);
+    stack_pop(proc->stack, &value, stack_err);
+
+    fprintf(stdout, "%" ELEM_SPEC "\n", value);
+
+    return VM_OK;
 }
 
 
-void vm_do_add(struct VM_processor *proc) {
+int vm_do_pop_r(struct VM_processor *proc, int reg_code, ssize_t *stack_err) {
+    assert(proc != NULL);
+    assert(proc->stack != NULL);
+    assert(proc->regs != NULL);
+
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+
+    if (proc->regs->len < reg_code - 1 || reg_code <= 0) {
+        return VM_WRONG_REGISTER_CODE;
+    }
+
+    stack_pop(proc->stack, &proc->regs->regs_arr[reg_code - 1], stack_err);
+
+    return VM_OK;
+}
+
+
+int vm_do_add(struct VM_processor *proc) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     UPDATE_VM_DEBUG(proc)
@@ -324,10 +448,12 @@ void vm_do_add(struct VM_processor *proc) {
     stack_pop(proc->stack, &val2, &err);
 
     stack_push(proc->stack, val1 + val2, &err);
+
+    return VM_OK;
 }
 
 
-void vm_do_sub(struct VM_processor *proc) {
+int vm_do_sub(struct VM_processor *proc) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     UPDATE_VM_DEBUG(proc)
@@ -340,10 +466,12 @@ void vm_do_sub(struct VM_processor *proc) {
     stack_pop(proc->stack, &val2, &err);
 
     stack_push(proc->stack, val1 - val2, &err);
+
+    return VM_OK;
 }
 
 
-void vm_do_mult(struct VM_processor *proc) {
+int vm_do_mult(struct VM_processor *proc) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     UPDATE_VM_DEBUG(proc)
@@ -356,10 +484,12 @@ void vm_do_mult(struct VM_processor *proc) {
     stack_pop(proc->stack, &val2, &err);
 
     stack_push(proc->stack, val1 * val2, &err);
+
+    return VM_OK;
 }
 
 
-void vm_do_div(struct VM_processor *proc) {
+int vm_do_div(struct VM_processor *proc) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
     UPDATE_VM_DEBUG(proc)
@@ -372,9 +502,10 @@ void vm_do_div(struct VM_processor *proc) {
     stack_pop(proc->stack, &val2, &err);
 
     if (val2 == 0) {
-        fprintf(stderr, "Error: dividing by zero\n");
-        return;
+        return VM_DIV_BY_ZERO;
     }
 
     stack_push(proc->stack, val1 / val2, &err);
+
+    return VM_OK;
 }

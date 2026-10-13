@@ -409,10 +409,10 @@ void stack_dump(const struct stack *const stk) {
     ON_DEBUG(if (stk->err_struct->error != STACK_OK) fprintf(stderr, RED "Error code %ld: %s\n" BASE_CLR,
                                                 stk->err_struct->error, stk->err_struct->err_name);)
 
-    ON_CANARY_PROT(fprintf(stderr, "\tleft  canary value: %lu\texpected canary: %lu\n", stk->left_canary, GET_CANARY(&stk->left_canary));)
-    ON_CANARY_PROT(fprintf(stderr, "\tright canary value: %lu\texpected canary: %lu\n", stk->right_canary, GET_CANARY(&stk->right_canary));)
-    ON_HASH_PROT(  fprintf(stderr, "\thash:               %lx\texpected hash  : %lx\n", stk->hash_struct->hash, stack_calculate_hash(stk));)
-    ON_HASH_PROT(  fprintf(stderr, "\tdata hash:          %lx\texpected       : %lx\n", stk->hash_struct->data_hash, stack_calculate_data_hash(stk));)
+    ON_CANARY_PROT(fprintf(stderr, "\tleft  canary value: 0x%016lx\texpected canary: 0x%016lx\n", stk->left_canary, GET_CANARY(&stk->left_canary));)
+    ON_CANARY_PROT(fprintf(stderr, "\tright canary value: 0x%016lx\texpected canary: 0x%016lx\n", stk->right_canary, GET_CANARY(&stk->right_canary));)
+    ON_HASH_PROT(  fprintf(stderr, "\thash:               0x%016lx\texpected hash  : 0x%016lx\n", stk->hash_struct->hash, stack_calculate_hash(stk));)
+    ON_HASH_PROT(  fprintf(stderr, "\tdata hash:          0x%016lx\texpected       : 0x%016lx\n", stk->hash_struct->data_hash, stack_calculate_data_hash(stk));)
 
     fprintf(stderr, "\tsize: %lu\n"
                     "\tcapacity: %lu\n"

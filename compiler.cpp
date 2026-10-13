@@ -1,5 +1,5 @@
 #include "compiler.hpp"
-#include "VM_commands.hpp""
+#include "VM_commands.hpp"
 #include <cstdio>
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -98,5 +98,6 @@ int compiler_error(int error) {
 int compiler_write_buffer_to_file(FILE *fp_out, char *buf_compiled) {
     assert(fp_out != NULL);
     assert(buf_compiled != NULL);
+
 
 }

@@ -9,6 +9,9 @@ enum VM_commands {
     DIV,
     OUT,
     HLT,
+
+    PUSHR,
+    POPR,
 };
 
 #endif
