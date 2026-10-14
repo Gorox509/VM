@@ -1,0 +1,6 @@
+PUSH 1
+PUSH 16
+:3
+ADD
+OUT
+HLT

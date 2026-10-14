@@ -1,4 +1,5 @@
 #include "VM_reading.hpp"
+#include "VM.hpp"
 #include <assert.h>
 
 int vm_read_file_to_buffer(FILE *fp, char *buf, size_t block_size) {
@@ -37,10 +38,25 @@ int vm_translate_buffer_to_code(struct VM_processor *proc, char *buf, size_t siz
             return vm_handle_error(proc, VM_WRONG_COMMAND);
 
         ON_VM_DEBUG(
-            if (proc->code[proc->code_len - n_read] != PUSH)
+            int cmd = proc->code[proc->code_len - n_read];
+            if (cmd != PUSH || cmd != POPR || cmd != PUSHR || cmd != JMP || cmd != JA || cmd != JAE || cmd != JB || cmd != JBE ||
+                cmd != JE || cmd != JNE || cmd != CALL)
                 proc->error->code_line += 1;
         )
     }
+
+    return VM_OK;
+}
+
+
+int vm_read_binary_code(FILE *fp, struct VM_processor *proc, size_t size) {
+    assert(proc != NULL);
+    assert(proc->code != NULL);
+    UPDATE_VM_DEBUG(proc)
+
+    proc->code_len = (int) (size / sizeof(int));
+    fread(proc->code, sizeof(int), size / sizeof(int), fp);
+
 
     return VM_OK;
 }

@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
@@ -16,7 +17,7 @@
 int main(int argc, char *argv[]) {
     assert(argv != NULL);
 
-    if (argc != 2) {
+    if (argc != 2 && argc != 3) {
         fprintf(stderr, "Error: Wrong arguments\n");
         exit(1);
     }
@@ -34,17 +35,27 @@ int main(int argc, char *argv[]) {
 
     struct VM_processor *proc = vm_make_processor((size_t) file_stat.st_size + 2);
 
-    char *buf = (char *) malloc((size_t) file_stat.st_size + 2);
-    if (buf == NULL) {
-        fprintf(stderr, "Error: failed to allocate buffer\n");
-        return 1;
+    if (argc == 3 && !strcmp(argv[2], "text"))
+        proc->text_mode = 1;
+
+    if (proc->text_mode) {
+        char *buf = (char *) malloc((size_t) file_stat.st_size + 2);
+        if (buf == NULL) {
+            fprintf(stderr, "Error: failed to allocate buffer\n");
+            return 1;
+        }
+
+        vm_read_file_to_buffer(fp, buf, (size_t) file_stat.st_blksize);
+        fclose(fp);
+
+        vm_translate_buffer_to_code(proc, buf, (size_t) file_stat.st_size + 2);
+
+        free(buf);
     }
 
-    vm_read_file_to_buffer(fp, buf, (size_t) file_stat.st_blksize);
-    fclose(fp);
-
-    vm_translate_buffer_to_code(proc, buf, (size_t) file_stat.st_size + 2);
-    free(buf);
+    else {
+        vm_read_binary_code(fp, proc, (size_t) file_stat.st_size);
+    }
 
     vm_do_program(proc);
 
@@ -132,6 +143,10 @@ int vm_do_instruction(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
+    if (proc->PC < 0 || proc->PC > proc->code_len) {
+        return VM_WRONG_PC;
+    }
+
     stack_elem_t arg = 0;
     int cmd = proc->code[proc->PC];
 
@@ -192,7 +207,7 @@ int vm_do_instruction(struct VM_processor *proc) {
         case JNE:
             return vm_do_jump_if(proc, arg, compare_not_equal);
 
-
+        case UNKNOWN:
         default:
             return VM_NO_COMMAND_FOUND;
     }
@@ -226,6 +241,10 @@ int vm_handle_error(struct VM_processor *proc, int error) {
 
         case VM_DIV_BY_ZERO:
             fprintf(stderr, "Error: dividing by zero\n");
+            break;
+
+        case VM_WRONG_PC:
+            fprintf(stderr, "Error: Program Counter value is invalid\n");
             break;
 
         default:

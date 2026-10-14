@@ -1,0 +1,13 @@
+IN
+IN
+CALL :1
+PUSH 42
+PUSH 67
+CALL :1
+HLT
+
+
+:1
+ADD
+OUT
+RET

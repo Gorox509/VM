@@ -23,6 +23,8 @@ enum VM_commands {
     IN,
     CALL,
     RET,
+
+    UNKNOWN,
 };
 
 #endif

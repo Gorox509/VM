@@ -27,6 +27,7 @@ enum VM_errors {
     VM_ZERO_PTR,
     VM_WRONG_REGISTER_CODE,
     VM_DIV_BY_ZERO,
+    VM_WRONG_PC,
 };
 
 
@@ -35,6 +36,8 @@ struct VM_processor {
     int *code = NULL;
     int code_len = 0;
     int PC = 0;
+
+    bool text_mode = 0;
 
     struct VM_registers *regs = NULL;
 
