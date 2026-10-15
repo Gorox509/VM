@@ -1,0 +1,29 @@
+IN
+POPR bx
+CALL :3
+PUSHR ax
+OUT
+HLT
+
+
+:3
+PUSH 0
+PUSHR bx
+JE :1
+PUSHR bx
+PUSH 1
+PUSHR bx
+SUB
+POPR bx
+CALL :3
+MUL
+POPR ax
+PUSHR ax
+RET
+
+
+:1
+PUSH 1
+POPR ax
+PUSHR ax
+RET

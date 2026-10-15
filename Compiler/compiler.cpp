@@ -1,11 +1,10 @@
 #include "compiler.hpp"
 #include "compiler_make.hpp"
 
-#include <cstdio>
-#include <cstdlib>
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
+#include <ctype.h>
 
 #define GET_CMD(...) #__VA_ARGS__
 
@@ -114,11 +113,16 @@ int compiler_do_compiling(struct compiler *comp) {
             if (is_label(arg)) {
                 int n_label = 0;
                 int err = COMPILER_OK;
-                if ((err = get_label_num(arg, &n_label)) != COMPILER_OK)
-                    return err;
+                if ((err = get_label_num(arg, &n_label)) != COMPILER_OK) return err;
+                if ((err = compiler_put_label(comp, n_label, n_written++)) != COMPILER_OK) return err;
+                continue;
+            }
 
-                if ((err = compiler_put_label(comp, n_label, n_written++)) != COMPILER_OK)
-                    return err;
+            if (is_register(arg)) {
+                int reg = 0;
+                int err = COMPILER_OK;
+                if ((err = get_register_code(arg, &reg)) != COMPILER_OK) return err;
+                if ((err = compiler_put_register(comp, reg, n_written++)) != COMPILER_OK) return err;
                 continue;
             }
 
@@ -171,6 +175,17 @@ int compiler_put_label(struct compiler *comp, int n_label, int pos) {
 }
 
 
+int compiler_put_register(struct compiler *comp, int reg_code, int pos) {
+    assert(comp != NULL);
+    assert(comp->labels != NULL);
+    assert(comp->code_buf != NULL);
+
+    comp->code_buf[pos] = reg_code;
+
+    return COMPILER_OK;
+}
+
+
 int get_label_num(char *arg, int *n_label) {
     assert(arg != NULL);
     assert(n_label != NULL);
@@ -178,6 +193,28 @@ int get_label_num(char *arg, int *n_label) {
     if ((*n_label = (int) strtol(arg + 1, NULL, 10)) == 0 && arg[0] != '0') { // TODO: redo. cringe
         return COMPILER_WRONG_LABEL;
     }
+
+    return COMPILER_OK;
+}
+
+
+int get_register_code(char *arg, int *reg_code) {
+    assert(arg != NULL);
+    assert(reg_code != NULL);
+
+    *reg_code = 0;
+
+    if (!strcmp(arg, "ax"))
+        *reg_code = 1;
+    else if (!strcmp(arg, "bx"))
+        *reg_code = 2;
+    else if (!strcmp(arg, "cx"))
+        *reg_code = 3;
+    else if (!strcmp(arg, "dx"))
+        *reg_code = 4;
+
+    if (*reg_code == 0)
+        return COMPILER_WRONG_REGISTER;
 
     return COMPILER_OK;
 }
@@ -223,6 +260,24 @@ int is_label(char *str) {
     if (str[0] == ':')
         return 1;
     return 0;
+}
+
+
+int is_register(char *str) {
+    assert(str != NULL);
+
+    if (is_all_alpha(str) && str[0] != ':' && str[0] != ';') return 1; // TODO: remake
+    return 0;
+}
+
+
+int is_all_alpha(char *str) {
+    int idx = 0;
+    while (str[idx] != '\0')
+        if (!isalpha(str[idx++]))
+            return 0;
+
+    return 1;
 }
 
 
@@ -302,6 +357,10 @@ int compiler_error(int error) {
 
         case COMPILER_WRONG_LABEL:
             fprintf(stderr, "Error: wrong label format\n");
+            break;
+
+        case COMPILER_WRONG_REGISTER:
+            fprintf(stderr, "Error: wrong register name\n");
             break;
     }
 
