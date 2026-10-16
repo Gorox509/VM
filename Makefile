@@ -18,9 +18,9 @@ DEFINES=-D HASH_PROT -D CANARY_PROT -D STACK_DEBUG -D VM_DEBUG
 
 all:
 
-VM: VM.o stack.o comparators.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
-	@$(CC) $(CFLAGS) $(DEFINES) VM.o stack.o comparators.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o -o vm.out
-	@rm -f VM.o stack.o comparators.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
+VM: VM.o stack.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
+	@$(CC) $(CFLAGS) $(DEFINES) VM.o stack.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o -o vm.out
+	@rm -f VM.o stack.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
 
 Compiler: compiler.o compiler_make.o
 	@$(CC) $(CFLAGS) $(DEFINES) compiler_make.o compiler.o -o compiler.out
@@ -31,9 +31,6 @@ VM.o:
 
 stack.o:
 	@$(CC) -c $(CFLAGS) $(DEFINES) stack/stack.cpp -o stack.o
-
-comparators.o:
-	@$(CC) -c $(CFLAGS) $(DEFINES) VM/comparators.cpp -o comparators.o
 
 VM_command_funcs.o:
 	@$(CC) -c $(CFLAGS) $(DEFINES) VM/VM_command_funcs.cpp -o VM_command_funcs.o

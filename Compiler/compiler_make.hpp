@@ -9,7 +9,7 @@ struct compiler *make_compiler_core();
 
 int make_compiler_buffer(   struct compiler *comp, size_t len);
 int make_compiler_code(     struct compiler *comp);
-int make_compiler_marks(    struct compiler *comp);
+int make_compiler_labels(    struct compiler *comp);
 
 int compiler_destruct(      struct compiler *comp);
 

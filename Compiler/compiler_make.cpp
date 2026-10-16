@@ -11,7 +11,7 @@ struct compiler *make_compiler_struct(size_t len) {
 
     make_compiler_code(comp);
 
-    make_compiler_marks(comp);
+    make_compiler_labels(comp);
 
     return comp;
 }
@@ -21,7 +21,7 @@ struct compiler *make_compiler_core() {
     struct compiler *comp = (struct compiler *) malloc(sizeof(struct compiler));
     if (comp == NULL) {
         fprintf(stderr, "Error: failed to allocate memory\n");
-        exit(1);
+        exit(1); // TODO: to return err;
     }
     *comp = {};
 
@@ -58,7 +58,7 @@ int make_compiler_code(struct compiler *comp) {
 }
 
 
-int make_compiler_marks(struct compiler *comp) {
+int make_compiler_labels(struct compiler *comp) {
     assert(comp != NULL);
 
     comp->labels = (int *) calloc(128, sizeof(int));

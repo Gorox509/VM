@@ -2,29 +2,12 @@
 #define VM_CMDS
 
 enum VM_commands {
-    PUSH = 1,
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    OUT,
-    HLT,
+    #define GENERATE(cmd) cmd,
 
-    PUSHR,
-    POPR,
-    JMP,
-    JA,
-    JAE,
-    JB,
-    JBE,
-    JE,
-    JNE,
-
-    IN,
-    CALL,
-    RET,
-
+    #include "generate.txt"
     UNKNOWN,
+
+    #undef GENERATE
 };
 
 #endif

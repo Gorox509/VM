@@ -5,6 +5,8 @@
 #include "../stack/stack.hpp"
 #include <stdio.h>
 
+#define REGS 4
+
 #ifdef VM_DEBUG
 #define ON_VM_DEBUG(...) __VA_ARGS__
 #define UPDATE_VM_DEBUG(proc) (proc)->error->last_called = __func__; (proc)->error->line = __LINE__; (proc)->error->filename = __FILE_NAME__;
@@ -31,6 +33,14 @@ enum VM_errors {
 };
 
 
+struct OpCode {
+    int op      : 5;
+    int konst   : 1;
+    int reg     : 1;
+    int mem     : 1;
+};
+
+
 struct VM_processor {
     struct stack *stack = NULL;
     int *code = NULL;
@@ -47,8 +57,7 @@ struct VM_processor {
 };
 
 struct VM_registers {
-    stack_elem_t regs_arr[4] = {};
-    int len = 4;
+    stack_elem_t regs_arr[REGS] = {};
 };
 
 ON_VM_DEBUG(

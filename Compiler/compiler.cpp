@@ -1,15 +1,11 @@
 #include "compiler.hpp"
-#include "compiler_make.hpp"
 
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
 
-#define GET_CMD(...) #__VA_ARGS__
-
-
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) { // TODO: to file
     if (argc != 3) {
         fprintf(stderr, "Error: wrong arguments");
         return 1;
@@ -204,14 +200,7 @@ int get_register_code(char *arg, int *reg_code) {
 
     *reg_code = 0;
 
-    if (!strcmp(arg, "ax"))
-        *reg_code = 1;
-    else if (!strcmp(arg, "bx"))
-        *reg_code = 2;
-    else if (!strcmp(arg, "cx"))
-        *reg_code = 3;
-    else if (!strcmp(arg, "dx"))
-        *reg_code = 4;
+    *reg_code = arg[0] - 'a' + 1;
 
     if (*reg_code == 0)
         return COMPILER_WRONG_REGISTER;
@@ -223,25 +212,15 @@ int get_register_code(char *arg, int *reg_code) {
 int command_code_from_str(char *str) {
     assert(str != NULL);
 
-    if (!strcmp(str, GET_CMD(PUSH))) return PUSH;
-    if (!strcmp(str, GET_CMD(ADD))) return ADD;
-    if (!strcmp(str, GET_CMD(SUB))) return SUB;
-    if (!strcmp(str, GET_CMD(MUL))) return MUL;
-    if (!strcmp(str, GET_CMD(DIV))) return DIV;
-    if (!strcmp(str, GET_CMD(OUT))) return OUT;
-    if (!strcmp(str, GET_CMD(HLT))) return HLT;
-    if (!strcmp(str, GET_CMD(PUSHR))) return PUSHR;
-    if (!strcmp(str, GET_CMD(POPR))) return POPR;
-    if (!strcmp(str, GET_CMD(JMP))) return JMP;
-    if (!strcmp(str, GET_CMD(JA))) return JA;
-    if (!strcmp(str, GET_CMD(JAE))) return JAE;
-    if (!strcmp(str, GET_CMD(JB))) return JB;
-    if (!strcmp(str, GET_CMD(JBE))) return JBE;
-    if (!strcmp(str, GET_CMD(JE))) return JE;
-    if (!strcmp(str, GET_CMD(JNE))) return JNE;
-    if (!strcmp(str, GET_CMD(IN))) return IN;
-    if (!strcmp(str, GET_CMD(CALL))) return CALL;
-    if (!strcmp(str, GET_CMD(RET))) return RET;
+    #define GENERATE(cmd) if (!strcmp(str, #cmd)) return cmd;
+
+    /*
+     * Файл generate.txt содержит список всех команд процессора, завернутых в GENERATE()
+     * В зависимости от контекста, в нужном месте задается макрос GENERATE(),
+     *      который за счет такой архитектуры раскрывается в вызов этого макроса для каждой команды
+     */
+    #include "../generate.txt"
+    #undef GENERATE
 
     return UNKNOWN;
 }
@@ -285,32 +264,17 @@ int is_known_cmd(char *cmd) { // TODO: to ?array of names or something idk?
     assert(cmd != NULL);
 
     return (
+        #define GENERATE(instr) !strcmp(cmd, #instr) ||
+        #include "../generate.txt"
+        #undef GENERATE
+
         cmd[0] == ';' ||
-        cmd[0] == ':' ||
-        !strcmp(cmd, "PUSH") ||
-        !strcmp(cmd, "ADD") ||
-        !strcmp(cmd, "SUB") ||
-        !strcmp(cmd, "MUL") ||
-        !strcmp(cmd, "DIV") ||
-        !strcmp(cmd, "OUT") ||
-        !strcmp(cmd, "HLT") ||
-        !strcmp(cmd, "PUSHR") ||
-        !strcmp(cmd, "POPR") ||
-        !strcmp(cmd, "JMP") ||
-        !strcmp(cmd, "JA") ||
-        !strcmp(cmd, "JAE") ||
-        !strcmp(cmd, "JB") ||
-        !strcmp(cmd, "JBE") ||
-        !strcmp(cmd, "JE") ||
-        !strcmp(cmd, "JNE") ||
-        !strcmp(cmd, "IN") ||
-        !strcmp(cmd, "CALL") ||
-        !strcmp(cmd, "RET")
+        cmd[0] == ':'
     );
 }
 
 
-int has_argument(char *cmd) {
+int has_argument(char *cmd) { // TODO: delete
     assert(cmd != NULL);
 
     return (

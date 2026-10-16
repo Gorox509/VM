@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
@@ -8,7 +7,6 @@
 #include "VM_command_funcs.hpp"
 #include "VM_reading.hpp"
 #include "VM_proc_make_funcs.hpp"
-#include "comparators.hpp"
 
 #define RED "\033[31m"
 #define BASE_CLR "\033[0m"
@@ -93,7 +91,7 @@ int vm_processor_dump(struct VM_processor *proc) {
 
     fprintf(stderr, "Register values:\n");
 
-    for (int i = 0; i < proc->regs->len; ++i) {
+    for (int i = 0; i < REGS; ++i) {
         fprintf(stderr, "register r%dx: 0x%08x\n", i + 1, *((unsigned int *) (proc->regs->regs_arr + i)));
     }
 
@@ -129,7 +127,7 @@ int vm_do_program(struct VM_processor *proc) {
         if (err != VM_OK)
             vm_handle_error(proc, err);
 
-        proc->PC++;
+        proc->PC++; // TODO: remove (later)
     }
     return err;
 }
@@ -147,65 +145,14 @@ int vm_do_instruction(struct VM_processor *proc) {
         return VM_WRONG_PC;
     }
 
-    stack_elem_t arg = 0;
-    int cmd = proc->code[proc->PC];
+    switch (proc->code[proc->PC] & 0x1f) {
 
-    if (cmd == PUSH || cmd == POPR || cmd == PUSHR || cmd == JMP || cmd == JA || cmd == JAE || cmd == JB || cmd == JBE || cmd == JE || cmd == JNE || cmd == CALL)
-        arg = proc->code[++proc->PC];
+        #define GENERATE(cmd)   case cmd:                               \
+                                    return vm_do_ ## cmd(proc);
 
-    ssize_t stack_err = STACK_OK;
+        #include "../generate.txt"
 
-    switch (cmd) {
-        case IN:
-            return vm_do_in(proc);
-
-        case PUSH:
-            return vm_do_push(proc, arg, &stack_err);
-
-        case PUSHR:
-            return vm_do_push_r(proc, arg, &stack_err);
-
-        case POPR:
-            return vm_do_pop_r(proc, arg, &stack_err);
-
-        case OUT:
-            return vm_do_out(proc, &stack_err);
-
-        case ADD:
-            return vm_do_add(proc);
-
-        case SUB:
-            return vm_do_sub(proc);
-
-        case MUL:
-            return vm_do_mult(proc);
-
-        case DIV:
-            return vm_do_div(proc);
-
-        case HLT:
-            return VM_HALT;
-
-        case CALL:
-            return vm_do_call(proc, arg);
-
-        case RET:
-            return vm_do_ret(proc);
-
-        case JMP:
-            return vm_do_jump_if(proc, arg, compare_always);
-        case JA:
-            return vm_do_jump_if(proc, arg, compare_above);
-        case JAE:
-            return vm_do_jump_if(proc, arg, compare_above_or_equal);
-        case JB:
-            return vm_do_jump_if(proc, arg, compare_below);
-        case JBE:
-            return vm_do_jump_if(proc, arg, compare_below_or_equal);
-        case JE:
-            return vm_do_jump_if(proc, arg, compare_equal);
-        case JNE:
-            return vm_do_jump_if(proc, arg, compare_not_equal);
+        #undef GENERATE
 
         case UNKNOWN:
         default:

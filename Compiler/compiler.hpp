@@ -2,6 +2,7 @@
 #define COMPILER_H
 
 #include "../VM_commands.hpp"
+#include "compiler_make.hpp"
 
 #include <stdio.h>
 

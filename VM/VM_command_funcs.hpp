@@ -1,22 +1,26 @@
 #ifndef VM_CMD_FUNCS_H
 #define VM_CMD_FUNCS_H
 
-#include "../stack/stack.hpp"
+int vm_do_PUSH(     struct VM_processor *proc);
+int vm_do_OUT(      struct VM_processor *proc);
+int vm_do_POP(     struct VM_processor *proc);
+int vm_do_ADD(      struct VM_processor *proc);
+int vm_do_SUB(      struct VM_processor *proc);
+int vm_do_MUL(      struct VM_processor *proc);
+int vm_do_DIV(      struct VM_processor *proc);
 
-int vm_do_push(     struct VM_processor *proc,  stack_elem_t value,     ssize_t *stack_err);
-int vm_do_push_r(   struct VM_processor *proc,  int         reg_code,   ssize_t *stack_err);
-int vm_do_out(      struct VM_processor *proc,                          ssize_t *stack_err);
-int vm_do_pop_r(    struct VM_processor *proc,  int         reg_code,   ssize_t *stack_err);
-int vm_do_add(      struct VM_processor *proc);
-int vm_do_sub(      struct VM_processor *proc);
-int vm_do_mult(     struct VM_processor *proc);
-int vm_do_div(      struct VM_processor *proc);
+int vm_do_JMP(      struct VM_processor *proc);
+int vm_do_JA(       struct VM_processor *proc);
+int vm_do_JAE(      struct VM_processor *proc);
+int vm_do_JB(       struct VM_processor *proc);
+int vm_do_JBE(      struct VM_processor *proc);
+int vm_do_JE(       struct VM_processor *proc);
+int vm_do_JNE(      struct VM_processor *proc);
 
-int vm_do_jump_if(  struct VM_processor *proc, int arg,
-                    int (*compare_for_jump)(stack_elem_t *, stack_elem_t *));
+int vm_do_IN(       struct VM_processor *proc);
+int vm_do_CALL(     struct VM_processor *proc);
+int vm_do_RET(      struct VM_processor *proc);
 
-int vm_do_in(       struct VM_processor *proc);
-int vm_do_call(     struct VM_processor *proc, int value);
-int vm_do_ret(      struct VM_processor *proc);
+int vm_do_HLT(      struct VM_processor *proc);
 
 #endif

@@ -36,13 +36,6 @@ int vm_translate_buffer_to_code(struct VM_processor *proc, char *buf, size_t siz
 
         if (n_read == 0 && buf[size_read] > '\0')
             return vm_handle_error(proc, VM_WRONG_COMMAND);
-
-        ON_VM_DEBUG(
-            int cmd = proc->code[proc->code_len - n_read];
-            if (cmd != PUSH || cmd != POPR || cmd != PUSHR || cmd != JMP || cmd != JA || cmd != JAE || cmd != JB || cmd != JBE ||
-                cmd != JE || cmd != JNE || cmd != CALL)
-                proc->error->code_line += 1;
-        )
     }
 
     return VM_OK;
