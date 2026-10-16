@@ -44,8 +44,8 @@ int argument_from_str(      char *str);
 int is_label(               char *str);
 int is_register(            char *str);
 int is_all_alpha(           char *str);
-int is_known_cmd(           char *cmd);
-int has_argument(           char *cmd);
+int is_known_cmd(           char *str);
+int has_argument(           char *str);
 
 int compiler_error(int error);
 
