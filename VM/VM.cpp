@@ -80,9 +80,11 @@ int vm_processor_dump(struct VM_processor *proc) {
         fprintf(stderr, "Code array can not be printed");
     }
     else {
-        fprintf(stderr, "[ ");
+        fprintf(stderr, "[  ");
         for (int i = 0; i < proc->code_len; ++i) {
-            fprintf(stderr, "%3d,", proc->code[i]);
+            if (i == proc->PC) fprintf(stderr, RED);
+            fprintf(stderr, "%hhx%hhx, ", proc->code[i] >> 4, proc->code[i] & 0x0f);
+            if (i == proc->PC) fprintf(stderr, BASE_CLR);
         }
         fprintf(stderr, "]\n");
         for (int i = -1; i < proc->PC && i < proc->code_len; ++i) fprintf(stderr, "    ");
@@ -127,7 +129,7 @@ int vm_do_program(struct VM_processor *proc) {
         if (err != VM_OK)
             vm_handle_error(proc, err);
 
-        proc->PC++; // TODO: remove (later)
+        proc->PC++;
     }
     return err;
 }

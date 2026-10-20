@@ -80,6 +80,7 @@ int compiler_do_compiling(struct compiler *comp) {
     while (comp->input_buf[n_read] != '\0') {
         int n_scanned = 0;
         int n_scanned_arg = 0;
+
         if (sscanf(comp->input_buf + n_read, "%s %n", cmd, &n_scanned) != 1) {
             return COMPILER_CANT_SCAN_CMD;
         }
@@ -94,14 +95,19 @@ int compiler_do_compiling(struct compiler *comp) {
             int n_label = 0;
             int err = get_label_num(cmd, &n_label);
             if (err != COMPILER_OK) return err;
-            if ((err = compiler_add_label(comp, n_label, n_written - 1)) != COMPILER_OK) return err;
+            if ((err = compiler_add_label(comp, n_label, n_written)) != COMPILER_OK) return err;
             continue;
         }
 
-        comp->code_buf[n_written++] = command_code_from_str(cmd);
+        int pos_cmd = n_written;
+        char cmd_code = (char) command_code_from_str(cmd);
+        compiler_write_to_code(comp, &n_written, &cmd_code, sizeof(char));
 
         if (has_argument(cmd)) {
-            if (sscanf(comp->input_buf + n_read, "%s %n", arg, &n_scanned_arg) != 1) {
+            char arg_types = 0x00;
+            int n_args = 1;
+
+            if (sscanf(comp->input_buf + n_read, "%s %n", arg, &n_scanned_arg) != 1) { // TODO: to %[]
                 return COMPILER_CANT_SCAN_ARG;
             }
             n_read += n_scanned_arg;
@@ -110,19 +116,29 @@ int compiler_do_compiling(struct compiler *comp) {
                 int n_label = 0;
                 int err = COMPILER_OK;
                 if ((err = get_label_num(arg, &n_label)) != COMPILER_OK) return err;
-                if ((err = compiler_put_label(comp, n_label, n_written++)) != COMPILER_OK) return err;
-                continue;
+                if ((err = compiler_put_label(comp, n_label, &n_written)) != COMPILER_OK) return err;
+                n_args = 0;
             }
 
             if (is_register(arg)) {
-                int reg = 0;
+                arg_t reg = 0;
                 int err = COMPILER_OK;
                 if ((err = get_register_code(arg, &reg)) != COMPILER_OK) return err;
-                if ((err = compiler_put_register(comp, reg, n_written++)) != COMPILER_OK) return err;
-                continue;
+                if ((err = compiler_put_register(comp, reg, &n_written)) != COMPILER_OK) return err;
+                arg_types |= 0x40;
             }
 
-            comp->code_buf[n_written++] = argument_from_str(arg);
+            if (!(arg_types & 0x40))
+                arg_types |= 0x20;
+
+            if (n_args == 0) continue;
+
+            if (arg_types & 0x20) {
+                arg_t arg_code = argument_from_str(arg);
+                compiler_write_to_code(comp, &n_written, &arg_code, sizeof(arg_t));
+            }
+
+            comp->code_buf[pos_cmd] |= arg_types;
         }
     }
 
@@ -137,7 +153,7 @@ int compiler_write_buffer_to_file(FILE *fp_out, struct compiler *comp) {
     assert(comp != NULL);
     assert(comp->code_buf != NULL);
 
-    fwrite(comp->code_buf, sizeof(int), (size_t) comp->code_len, fp_out);
+    fwrite(comp->code_buf, sizeof(char), (size_t) comp->code_len, fp_out);
 
     return COMPILER_OK;
 }
@@ -160,23 +176,39 @@ int compiler_add_label(struct compiler *comp, int n_label, int pos) {
 }
 
 
-int compiler_put_label(struct compiler *comp, int n_label, int pos) {
+int compiler_put_label(struct compiler *comp, int n_label, int *pos) {
     assert(comp != NULL);
     assert(comp->labels != NULL);
     assert(comp->code_buf != NULL);
+    assert(pos != NULL);
 
-    comp->code_buf[pos] = comp->labels[n_label];
+    arg_t arg = (arg_t) comp->labels[n_label];
+    compiler_write_to_code(comp, pos, &arg, sizeof(arg_t));
 
     return COMPILER_OK;
 }
 
 
-int compiler_put_register(struct compiler *comp, int reg_code, int pos) {
+int compiler_put_register(struct compiler *comp, int reg_code, int *pos) {
     assert(comp != NULL);
     assert(comp->labels != NULL);
     assert(comp->code_buf != NULL);
+    assert(pos != NULL);
 
-    comp->code_buf[pos] = reg_code;
+    compiler_write_to_code(comp, pos, &reg_code, sizeof(arg_t));
+
+    return COMPILER_OK;
+}
+
+
+int compiler_write_to_code(struct compiler *comp, int *pos, const void *src, size_t size) {
+    assert(comp != NULL);
+    assert(src != NULL);
+
+    if (memcpy(&comp->code_buf[*pos], src, size) == NULL)
+        return COMPILER_FAILED_TO_WRITE_TO_CODE;
+
+    *pos += (int) size;
 
     return COMPILER_OK;
 }
@@ -279,8 +311,7 @@ int has_argument(char *cmd) { // TODO: delete
 
     return (
         !strcmp(cmd, "PUSH") ||
-        !strcmp(cmd, "PUSHR") ||
-        !strcmp(cmd, "POPR") ||
+        !strcmp(cmd, "POP") ||
         !strcmp(cmd, "CALL") ||
         !strcmp(cmd, "JMP") ||
         !strcmp(cmd, "JA") ||

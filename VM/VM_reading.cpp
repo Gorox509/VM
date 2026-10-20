@@ -31,7 +31,7 @@ int vm_translate_buffer_to_code(struct VM_processor *proc, char *buf, size_t siz
         int read = 0;
         int n_read = 0;
 
-        proc->code_len += n_read = sscanf(buf + size_read, "%d %n", &proc->code[proc->code_len], &read); // TODO: custom function that counts read symbols and newlines
+        proc->code_len += n_read = sscanf(buf + size_read, "%c %n", &proc->code[proc->code_len], &read); // TODO: custom function that counts read symbols and newlines
         size_read += read;
 
         if (n_read == 0 && buf[size_read] > '\0')
@@ -47,8 +47,8 @@ int vm_read_binary_code(FILE *fp, struct VM_processor *proc, size_t size) {
     assert(proc->code != NULL);
     UPDATE_VM_DEBUG(proc)
 
-    proc->code_len = (int) (size / sizeof(int));
-    fread(proc->code, sizeof(int), size / sizeof(int), fp);
+    proc->code_len = (int) (size / sizeof(char));
+    fread(proc->code, sizeof(char), size / sizeof(char), fp);
 
 
     return VM_OK;

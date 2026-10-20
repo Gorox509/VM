@@ -46,12 +46,13 @@ int make_compiler_buffer(struct compiler *comp, size_t len) {
 int make_compiler_code(struct compiler *comp) {
     assert(comp != NULL);
 
-    comp->code_buf = (int *) calloc(128, sizeof(int)); // TODO: extend when needed
+    comp->code_size = 1024;
+    comp->code_buf = (char *) calloc((size_t) comp->code_size, sizeof(char)); // TODO: extend when needed
     if (comp->code_buf == NULL) {
         fprintf(stderr, "Error: failed to allocate memory\n");
         exit(1);
     }
-    comp->code_size = 128;
+
     comp->code_len = 0;
 
     return COMPILER_OK;
@@ -61,12 +62,12 @@ int make_compiler_code(struct compiler *comp) {
 int make_compiler_labels(struct compiler *comp) {
     assert(comp != NULL);
 
-    comp->labels = (int *) calloc(128, sizeof(int));
+    comp->labels_size = 1024;
+    comp->labels = (int *) calloc((size_t) comp->labels_size, sizeof(int));
     if (comp->labels == NULL) {
         fprintf(stderr, "Error: failed to allocate memory\n");
         exit(1);
     }
-    comp->labels_size = 128;
     for (int i = 0; i < comp->labels_size; ++i) comp->labels[i] = EMPTY_LABEL;
 
 
@@ -81,6 +82,7 @@ int compiler_destruct(struct compiler *comp) {
     free(comp->code_buf);
     free(comp->input_buf);
     free(comp->labels);
+
 
     return COMPILER_OK;
 }

@@ -9,6 +9,7 @@ int                  vm_make_proc_stack(        struct VM_processor *proc);
 int                  vm_make_proc_call_stack(   struct VM_processor *proc);
 int                  vm_make_proc_code(         struct VM_processor *proc, size_t len);
 int                  vm_make_proc_regs(         struct VM_processor *proc);
+int                 vm_make_proc_RAM(           struct VM_processor *proc);
 ON_VM_DEBUG(int vm_make_proc_error_struct(      struct VM_processor *proc);)
 
 int vm_processor_destructor(                    struct VM_processor *proc);

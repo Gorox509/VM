@@ -1,32 +1,53 @@
 #include "VM_command_funcs.hpp"
 #include <assert.h>
+#include <memory.h>
 #include "VM.hpp"
 #include "../stack/stack.hpp"
+
+#define GET_ARG(ptr)    stack_elem_t arg = 0;                                                   \
+                        stack_elem_t *arg_ptr = (stack_elem_t *) malloc(sizeof(stack_elem_t));  \
+                        memcpy(arg_ptr, (ptr), sizeof(stack_elem_t));                           \
+                        arg = *arg_ptr;                                                         \
+                        free(arg_ptr);
+
+
 
 int vm_do_PUSH(struct VM_processor *proc) {
     assert(proc != NULL);
     assert(proc->stack != NULL);
 
-    ssize_t err = STACK_OK;
-    int cmd = proc->code[proc->PC];
-
-    int *arg_p = proc->code + proc->PC + 1;
-    int res = 0;
-    if (cmd & 0x20) {
-        res += *arg_p;
-        arg_p++;
-    }
-    if (cmd & 0x40) {
-        res += proc->regs->regs_arr[*arg_p];
-        arg_p++;
-    }
-    /*if (cmd & 0x80) {
-        res += proc->RAM->arr[*arg_p]; TODO: uncomment when RAM
-        arg_p++;
-    }*/
-
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
+
+    ssize_t err = STACK_OK;
+    char cmd = proc->code[proc->PC];
+
+    stack_elem_t *arg_p = (stack_elem_t *) (proc->code + proc->PC + 1);
+    int res = 0;
+    if (cmd & 0x20) {
+        GET_ARG(arg_p)
+        res += arg;
+        arg_p++;
+        proc->PC += (int) sizeof(stack_elem_t);
+    }
+    if (cmd & 0x40) {
+        GET_ARG(arg_p)
+        if (arg < 1 || arg > REGS)
+            return VM_WRONG_REGISTER_CODE;
+        res += proc->regs->regs_arr[arg - 1];
+        arg_p++;
+        proc->PC += (int) sizeof(stack_elem_t);
+    }
+    if (cmd & 0x80) {
+        GET_ARG(arg_p)
+        if (arg < 0 || arg > proc->RAM_len)
+            return VM_RAM_OUT_OF_BOUNDS;
+        proc->RAM[arg] = res;
+        arg_p++;
+        proc->PC += (int) sizeof(stack_elem_t);
+        return VM_OK;
+    }
+
     stack_push(proc->stack, res, &err); // TODO: to bits
 
     return VM_OK;
@@ -55,17 +76,34 @@ int vm_do_POP(struct VM_processor *proc) {
     assert(proc->stack != NULL);
     assert(proc->regs != NULL);
 
-    int reg_code = proc->code[++proc->PC];
-    ssize_t err = STACK_OK;
-
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    if (REGS < reg_code - 1 || reg_code <= 0) {
-        return VM_WRONG_REGISTER_CODE;
-    }
+    char cmd = proc->code[proc->PC];
+    stack_elem_t res = 0;
+    ssize_t err = STACK_OK;
 
-    stack_pop(proc->stack, &proc->regs->regs_arr[reg_code - 1], &err);
+    if (cmd & 0x20) {
+        return VM_POP_CONST;
+    }
+    if (cmd & 0x40) {
+        GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
+        if (REGS < arg - 1 || arg <= 0) {
+            return VM_WRONG_REGISTER_CODE;
+        }
+        res += arg;
+        proc->PC += (int) sizeof(stack_elem_t);
+        stack_pop(proc->stack, &proc->regs->regs_arr[res - 1], &err);
+    }
+    else if (cmd & 0x80) {
+        GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
+
+        if (arg > proc->RAM_len || arg <= 0) {
+            return VM_RAM_OUT_OF_BOUNDS;
+        }
+        proc->PC += (int) sizeof(stack_elem_t);
+        stack_pop(proc->stack, &proc->RAM[arg], &err);
+    }
 
     return VM_OK;
 }
@@ -152,7 +190,7 @@ int vm_do_JMP(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -160,7 +198,7 @@ int vm_do_JMP(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    proc->PC = arg;
+    proc->PC = arg - 1;
 
     return VM_OK;
 }
@@ -171,7 +209,7 @@ int vm_do_JA(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -179,7 +217,9 @@ int vm_do_JA(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    if (val1 > val2) proc->PC = arg;
+    if (val1 > val2) proc->PC = arg - 1;
+
+    else proc->PC += (int) sizeof(stack_elem_t);
 
     return VM_OK;
 }
@@ -190,7 +230,7 @@ int vm_do_JAE(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -198,7 +238,9 @@ int vm_do_JAE(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    if (val1 >= val2) proc->PC = arg;
+    if (val1 >= val2) proc->PC = arg - 1;
+
+    else proc->PC += (int) sizeof(stack_elem_t);
 
     return VM_OK;
 }
@@ -209,7 +251,7 @@ int vm_do_JB(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -217,7 +259,9 @@ int vm_do_JB(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    if (val1 < val2) proc->PC = arg;
+    if (val1 < val2) proc->PC = arg - 1;
+
+    else proc->PC += (int) sizeof(stack_elem_t);
 
     return VM_OK;
 }
@@ -228,7 +272,7 @@ int vm_do_JBE(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -236,7 +280,9 @@ int vm_do_JBE(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    if (val1 <= val2) proc->PC = arg;
+    if (val1 <= val2) proc->PC = arg - 1;
+
+    else proc->PC += (int) sizeof(stack_elem_t);
 
     return VM_OK;
 }
@@ -247,7 +293,7 @@ int vm_do_JE(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -255,7 +301,9 @@ int vm_do_JE(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    if (val1 == val2) proc->PC = arg;
+    if (val1 == val2) proc->PC = arg - 1;
+
+    else proc->PC += (int) sizeof(stack_elem_t);
 
     return VM_OK;
 }
@@ -266,7 +314,7 @@ int vm_do_JNE(struct VM_processor *proc) {
     UPDATE_VM_DEBUG(proc)
     UPDATE_STACK_DEBUG(proc->stack)
 
-    int arg = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
 
     ssize_t err = STACK_OK;
     stack_elem_t val1 = 0, val2 = 0;
@@ -274,7 +322,9 @@ int vm_do_JNE(struct VM_processor *proc) {
     stack_pop(proc->stack, &val1, &err);
     stack_pop(proc->stack, &val2, &err);
 
-    if (val1 != val2) proc->PC = arg;
+    if (val1 != val2) proc->PC = arg - 1;
+
+    else proc->PC += (int) sizeof(stack_elem_t);
 
     return VM_OK;
 }
@@ -305,12 +355,12 @@ int vm_do_CALL(struct VM_processor *proc) {
     UPDATE_STACK_DEBUG(proc->stack)
     UPDATE_STACK_DEBUG(proc->call_stack)
 
-    int value = proc->code[++proc->PC];
+    GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
     ssize_t call_err = STACK_OK;
 
-    stack_push(proc->call_stack, proc->PC, &call_err);
+    stack_push(proc->call_stack, proc->PC + (int) sizeof(stack_elem_t), &call_err);
 
-    proc->PC = value;
+    proc->PC = arg - 1; // to next cmd at arg position
 
     return VM_OK;
 }

@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 
+typedef int arg_t;
+
 #define EMPTY_LABEL -10
 
 enum compiler_errors {
@@ -17,12 +19,13 @@ enum compiler_errors {
     COMPILER_LABEL_OUTSIDE_LABELS_ARRAY,
     COMPILER_WRONG_LABEL,
     COMPILER_WRONG_REGISTER,
+    COMPILER_FAILED_TO_WRITE_TO_CODE,
 };
 
 
 struct compiler {
     char *input_buf = NULL;
-    int *code_buf = NULL;
+    char *code_buf = NULL;
     int code_len = 0;
     int code_size = 0;
 
@@ -35,8 +38,11 @@ int compiler_read_file_to_buffer(   FILE *fp,       struct compiler *comp,  size
 int compiler_do_compiling(                          struct compiler *comp);
 int compiler_write_buffer_to_file(  FILE *fp_out,   struct compiler *comp);
 int compiler_add_label(                             struct compiler *comp,  int n_label,    int pos);
-int compiler_put_label(                             struct compiler *comp,  int n_label,    int pos);
-int compiler_put_register(                          struct compiler *comp,  int reg_code,   int pos);
+int compiler_put_label(                             struct compiler *comp,  int n_label,    int *pos);
+int compiler_put_register(                          struct compiler *comp,  int reg_code,   int *pos);
+
+int compiler_write_to_code(                         struct compiler *comp,  int *pos,
+                                                    const void *src, size_t size);
 
 int get_label_num(          char *arg,  int *n_label);
 int get_register_code(      char *arg,  int *reg_code);

@@ -30,6 +30,8 @@ enum VM_errors {
     VM_WRONG_REGISTER_CODE,
     VM_DIV_BY_ZERO,
     VM_WRONG_PC,
+    VM_RAM_OUT_OF_BOUNDS,
+    VM_POP_CONST,
 };
 
 
@@ -43,9 +45,12 @@ struct OpCode {
 
 struct VM_processor {
     struct stack *stack = NULL;
-    int *code = NULL;
+    char *code = NULL;
     int code_len = 0;
     int PC = 0;
+
+    stack_elem_t *RAM = NULL;
+    int RAM_len = 0;
 
     bool text_mode = 0;
 
