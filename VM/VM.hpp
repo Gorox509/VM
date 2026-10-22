@@ -32,6 +32,8 @@ enum VM_errors {
     VM_WRONG_PC,
     VM_RAM_OUT_OF_BOUNDS,
     VM_POP_CONST,
+    VM_STACK_ERROR,
+    VM_CALL_STACK_ERROR,
 };
 
 

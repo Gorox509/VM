@@ -369,11 +369,16 @@ void stack_pop(struct stack *const stk, stack_elem_t *out, ssize_t *err) {
     if ((*err = stack_error(stk)) != STACK_OK)
         return;
 
+    if (stk->size < 1) {
+        *err = STACK_UNDERFLOW;
+        return;
+    }
+
     *out = stk->data[--stk->size ON_CANARY_PROT(+1)];
 
     ON_HASH_PROT(stack_update_hash(stk);)
 
-    while (stk->capacity > 1 && stk->size * 4 < stk->capacity) {
+    while (stk->capacity > 1 && stk->size > 0 && stk->size * 4 < stk->capacity) {
         if ((*err = stack_shrink(stk)) != STACK_OK)
             return;
     }

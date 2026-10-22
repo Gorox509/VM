@@ -5,6 +5,11 @@
 #include <string.h>
 #include <ctype.h>
 
+#define CHECK_ERR_MSG(err_msg, ...) if ((err = compiler_error(__VA_ARGS__, err_msg)) != COMPILER_OK) return err;
+#define CHECK_ERR(...) if ((err = __VA_ARGS__) != COMPILER_OK) return err;
+#define MAX_STR_LEN 256
+
+
 int main(int argc, char *argv[]) { // TODO: to file
     if (argc != 3) {
         fprintf(stderr, "Error: wrong arguments");
@@ -22,8 +27,9 @@ int main(int argc, char *argv[]) { // TODO: to file
     compiler_read_file_to_buffer(fp_in, comp, (size_t) file_stat.st_blksize);
     fclose(fp_in);
 
-    compiler_error(compiler_do_compiling(comp));
-    compiler_error(compiler_do_compiling(comp));
+
+    compiler_do_compiling(comp);
+    compiler_do_compiling(comp);
 
     FILE *fp_out = fopen(file_out, "wb");
     compiler_write_buffer_to_file(fp_out, comp);
@@ -74,71 +80,84 @@ int compiler_do_compiling(struct compiler *comp) {
     int n_read = 0;
     int n_written = 0;
 
-    char cmd[256] = "";
-    char arg[256] = "";
+    char cmd[MAX_STR_LEN] = "";
 
     while (comp->input_buf[n_read] != '\0') {
         int n_scanned = 0;
         int n_scanned_arg = 0;
 
         if (sscanf(comp->input_buf + n_read, "%s %n", cmd, &n_scanned) != 1) {
+            compiler_error(COMPILER_CANT_SCAN_CMD, cmd);
             return COMPILER_CANT_SCAN_CMD;
         }
 
         n_read += n_scanned;
 
         if (!is_known_cmd(cmd)) {
+            compiler_error(COMPILER_UNKNOWN_CMD, cmd);
             return COMPILER_UNKNOWN_CMD;
         }
 
         if (is_label(cmd)) {
             int n_label = 0;
-            int err = get_label_num(cmd, &n_label);
-            if (err != COMPILER_OK) return err;
-            if ((err = compiler_add_label(comp, n_label, n_written)) != COMPILER_OK) return err;
+            int err = 0;
+            CHECK_ERR_MSG(cmd, get_label_num(cmd, &n_label))
+            CHECK_ERR_MSG(cmd, compiler_add_label(comp, n_label, n_written));
             continue;
         }
 
-        int pos_cmd = n_written;
         char cmd_code = (char) command_code_from_str(cmd);
+        int cmd_pos = n_written;
         compiler_write_to_code(comp, &n_written, &cmd_code, sizeof(char));
 
         if (has_argument(cmd)) {
-            char arg_types = 0x00;
-            int n_args = 1;
 
-            if (sscanf(comp->input_buf + n_read, "%s %n", arg, &n_scanned_arg) != 1) { // TODO: to %[]
-                return COMPILER_CANT_SCAN_ARG;
-            }
-            n_read += n_scanned_arg;
+            char arg[MAX_STR_LEN] = "";
+            arg_t dig_arg = 0;
+            bool scanned = 0;
+            int err = COMPILER_OK;
 
-            if (is_label(arg)) {
+            if (!scanned && sscanf(comp->input_buf + n_read, "%s %n", arg, &n_scanned_arg) == 1 && is_label(arg)) {
                 int n_label = 0;
-                int err = COMPILER_OK;
-                if ((err = get_label_num(arg, &n_label)) != COMPILER_OK) return err;
-                if ((err = compiler_put_label(comp, n_label, &n_written)) != COMPILER_OK) return err;
-                n_args = 0;
+                CHECK_ERR_MSG(arg, get_label_num(arg, &n_label))
+                compiler_put_label(comp, n_label, &n_written);
+                scanned = 1;
             }
 
-            if (is_register(arg)) {
-                arg_t reg = 0;
-                int err = COMPILER_OK;
-                if ((err = get_register_code(arg, &reg)) != COMPILER_OK) return err;
-                if ((err = compiler_put_register(comp, reg, &n_written)) != COMPILER_OK) return err;
-                arg_types |= 0x40;
+
+            if (!scanned && sscanf(comp->input_buf + n_read, "[%[a-dx]+%d] %n", arg, &dig_arg, &n_scanned_arg) == 2) {
+                int reg_code = 0;
+                CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code))
+                CHECK_ERR(handle_mem_reg_const_arg(comp, &n_written, cmd_pos, reg_code, dig_arg))
+                scanned = 1;
+            }
+            if (!scanned && sscanf(comp->input_buf + n_read, "[%[a-dx]] %n", arg, &n_scanned_arg) == 1) {
+                int reg_code = 0;
+                CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code))
+                CHECK_ERR(handle_mem_reg_arg(comp, &n_written, cmd_pos, reg_code))
+                scanned = 1;
+            }
+            if (!scanned && sscanf(comp->input_buf + n_read, "[%d] %n", &dig_arg, &n_scanned_arg) == 1) {
+                CHECK_ERR(handle_mem_const_arg(comp, &n_written, cmd_pos, dig_arg))
+                scanned = 1;
+            }
+            if (!scanned && sscanf(comp->input_buf + n_read, "%[a-dx] %n", arg, &n_scanned_arg) == 1) {
+                int reg_code = 0;
+                CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code))
+                CHECK_ERR(handle_reg_arg(comp, &n_written, cmd_pos, reg_code))
+                scanned = 1;
+            }
+            if (!scanned && sscanf(comp->input_buf + n_read, "%d %n", &dig_arg, &n_scanned_arg) == 1) {
+                CHECK_ERR(handle_const_arg(comp, &n_written, cmd_pos, dig_arg))
+                scanned = 1;
             }
 
-            if (!(arg_types & 0x40))
-                arg_types |= 0x20;
-
-            if (n_args == 0) continue;
-
-            if (arg_types & 0x20) {
-                arg_t arg_code = argument_from_str(arg);
-                compiler_write_to_code(comp, &n_written, &arg_code, sizeof(arg_t));
+            if (!scanned) {
+                compiler_error(COMPILER_NO_ARGUMENT, arg);
+                return COMPILER_NO_ARGUMENT;
             }
 
-            comp->code_buf[pos_cmd] |= arg_types;
+            n_read += n_scanned_arg;
         }
     }
 
@@ -324,40 +343,106 @@ int has_argument(char *cmd) { // TODO: delete
 }
 
 
-int compiler_error(int error) {
+int compiler_error(int error, char *err_str) {
+
+    if (err_str == NULL)
+        error = COMPILER_INVALID_MSG;
+
     switch (error) {
         default:
         case COMPILER_OK:
             break;
 
+        case COMPILER_FAILED_TO_WRITE_TO_CODE:
+            fprintf(stderr, "Error: failed to write to code array\n");
+            break;
+
+        case COMPILER_INVALID_MSG:
+            fprintf(stderr, "Error: invalid error message\n");
+            break;
+
         case COMPILER_CANT_SCAN_CMD:
-            fprintf(stderr, "Error: Can not scan command\n");
+            fprintf(stderr, "Error: Can not scan command [%s]\n", err_str);
             break;
 
         case COMPILER_CANT_SCAN_ARG:
-            fprintf(stderr, "Error: Can not scan argument\n");
+            fprintf(stderr, "Error: Can not scan argument [%s]\n", err_str);
             break;
 
         case COMPILER_UNKNOWN_CMD:
-            fprintf(stderr, "Error: Unknown command\n");
+            fprintf(stderr, "Error: Unknown command [%s]\n", err_str);
             break;
 
         case COMPILER_LABEL_REDEFINITION:
-            fprintf(stderr, "Error: Label redefiniton\n");
+            fprintf(stderr, "Error: Label redefiniton [%s]\n", err_str);
             break;
 
         case COMPILER_LABEL_OUTSIDE_LABELS_ARRAY:
-            fprintf(stderr, "Error: Label value is unsupported\n");
+            fprintf(stderr, "Error: Label value is unsupported [%s]\n", err_str);
             break;
 
         case COMPILER_WRONG_LABEL:
-            fprintf(stderr, "Error: wrong label format\n");
+            fprintf(stderr, "Error: wrong label format [%s]\n", err_str);
             break;
 
         case COMPILER_WRONG_REGISTER:
-            fprintf(stderr, "Error: wrong register name\n");
+            fprintf(stderr, "Error: wrong register name [%s]\n", err_str);
+            break;
+
+        case COMPILER_NO_ARGUMENT:
+            fprintf(stderr, "Error: no argument\n");
             break;
     }
 
     return COMPILER_OK;
+}
+
+
+int handle_const_arg(struct compiler *comp, int *pos, int cmd_pos, arg_t konst) {
+    assert(comp != NULL);
+    assert(pos != NULL);
+
+    comp->code_buf[cmd_pos] |= 0x20;
+    return compiler_write_to_code(comp, pos, &konst, sizeof(arg_t));
+}
+
+
+int handle_reg_arg(struct compiler *comp, int *pos, int cmd_pos, int reg) {
+    assert(comp != NULL);
+    assert(pos != NULL);
+
+    comp->code_buf[cmd_pos] |= 0x40;
+    return compiler_put_register(comp, reg, pos);
+}
+
+
+int handle_mem_const_arg(struct compiler *comp, int *pos, int cmd_pos, arg_t konst) {
+    assert(comp != NULL);
+    assert(pos != NULL);
+
+    comp->code_buf[cmd_pos] |= 0x20;
+    comp->code_buf[cmd_pos] |= (char) 0x80;
+    return compiler_write_to_code(comp, pos, &konst, sizeof(arg_t));
+}
+
+
+int handle_mem_reg_arg(struct compiler *comp, int *pos, int cmd_pos, int reg_code) {
+    assert(comp != NULL);
+    assert(pos != NULL);
+
+    comp->code_buf[cmd_pos] |= 0x40;
+    comp->code_buf[cmd_pos] |= (char) 0x80;
+    return compiler_put_register(comp, reg_code, pos);
+}
+
+
+int handle_mem_reg_const_arg(struct compiler *comp, int *pos, int cmd_pos, int reg_code, arg_t konst) {
+    assert(comp != NULL);
+    assert(pos != NULL);
+
+    comp->code_buf[cmd_pos] |= 0x20;
+    comp->code_buf[cmd_pos] |= 0x40;
+    comp->code_buf[cmd_pos] |= (char) 0x80;
+    return compiler_write_to_code(comp, pos, &konst, sizeof(arg_t))
+        || compiler_put_register(comp, reg_code, pos);
 }

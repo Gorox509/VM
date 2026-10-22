@@ -20,6 +20,8 @@ enum compiler_errors {
     COMPILER_WRONG_LABEL,
     COMPILER_WRONG_REGISTER,
     COMPILER_FAILED_TO_WRITE_TO_CODE,
+    COMPILER_NO_ARGUMENT,
+    COMPILER_INVALID_MSG,
 };
 
 
@@ -54,7 +56,13 @@ int is_all_alpha(           char *str);
 int is_known_cmd(           char *str);
 int has_argument(           char *str);
 
-int compiler_error(int error);
+int compiler_error(int error, char *err_str);
+
+int handle_const_arg(           struct compiler *comp, int *pos, int cmd_pos, arg_t konst);
+int handle_reg_arg(             struct compiler *comp, int *pos, int cmd_pos, int reg);
+int handle_mem_const_arg(       struct compiler *comp, int *pos, int cmd_pos, arg_t konst);
+int handle_mem_reg_arg(         struct compiler *comp, int *pos, int cmd_pos, int reg_code);
+int handle_mem_reg_const_arg(   struct compiler *comp, int *pos, int cmd_pos, int reg_code, arg_t konst);
 
 
 #endif

@@ -72,7 +72,7 @@ int vm_processor_dump(struct VM_processor *proc) {
 
     fprintf(stderr, "Dumping processor structure:\n");
     ON_VM_DEBUG(
-        fprintf(stderr, "Virtual processor structure, last called from function \"%s\" in %s:%d\n", proc->error->last_called, proc->error->filename, proc->error->line);
+        fprintf(stderr, "Virtual processor structure, last called from function \"%s\" located in %s:%d\n", proc->error->last_called, proc->error->filename, proc->error->line);
         fprintf(stderr, "Code lines read: %d\n", proc->error->code_line);
     )
     fprintf(stderr, "Current program counter: % d\n", proc->PC);
@@ -83,7 +83,7 @@ int vm_processor_dump(struct VM_processor *proc) {
         fprintf(stderr, "[  ");
         for (int i = 0; i < proc->code_len; ++i) {
             if (i == proc->PC) fprintf(stderr, RED);
-            fprintf(stderr, "%hhx%hhx, ", proc->code[i] >> 4, proc->code[i] & 0x0f);
+            fprintf(stderr, "%02hhx, ", proc->code[i]);
             if (i == proc->PC) fprintf(stderr, BASE_CLR);
         }
         fprintf(stderr, "]\n");
@@ -97,7 +97,11 @@ int vm_processor_dump(struct VM_processor *proc) {
         fprintf(stderr, "register r%dx: 0x%08x\n", i + 1, *((unsigned int *) (proc->regs->regs_arr + i)));
     }
 
+    fprintf(stderr, "\nDumping processor stack:");
     stack_dump(proc->stack);
+
+    fprintf(stderr, "Dumping call stack:");
+    stack_dump(proc->call_stack);
 
     return VM_OK;
 }
@@ -149,8 +153,9 @@ int vm_do_instruction(struct VM_processor *proc) {
 
     switch (proc->code[proc->PC] & 0x1f) {
 
-        #define GENERATE(cmd)   case cmd:                               \
-                                    return vm_do_ ## cmd(proc);
+        #define GENERATE(cmd)                   \
+        case cmd:                               \
+            return vm_do_ ## cmd(proc);
 
         #include "../generate.txt"
 
@@ -189,11 +194,31 @@ int vm_handle_error(struct VM_processor *proc, int error) {
             break;
 
         case VM_DIV_BY_ZERO:
-            fprintf(stderr, "Error: dividing by zero\n");
+            fprintf(stderr, "Dividing by zero\n");
             break;
 
         case VM_WRONG_PC:
-            fprintf(stderr, "Error: Program Counter value is invalid\n");
+            fprintf(stderr, "Program Counter value is invalid\n");
+            break;
+
+        case VM_STACK_ERROR:
+            fprintf(stderr, "Stack error. See stack dump for more information\n");
+            break;
+
+        case VM_CALL_STACK_ERROR:
+            fprintf(stderr, "Call stack error. See call stack dump for more information\n");
+            break;
+
+        case VM_RAM_OUT_OF_BOUNDS:
+            fprintf(stderr, "Trying to access non-existing memory\n");
+            break;
+
+        case VM_POP_CONST:
+            fprintf(stderr, "Trying to pop to constant value\n");
+            break;
+
+        case VM_HALT:
+            fprintf(stderr, "HLT signal\n");
             break;
 
         default:
