@@ -452,6 +452,9 @@ int vm_do_RET(struct VM_processor *proc) {
 int vm_do_DRAW(struct VM_processor *proc) {
     assert(proc != NULL);
 
+    UPDATE_VM_DEBUG(proc)
+    UPDATE_STACK_DEBUG(proc->stack)
+
     vm_mem_dump(proc);
 
     return VM_OK;
@@ -460,6 +463,8 @@ int vm_do_DRAW(struct VM_processor *proc) {
 
 int vm_do_HLT(struct VM_processor *proc) {
     assert(proc != NULL);
+
+    UPDATE_VM_DEBUG(proc)
 
     return VM_HALT;
 }
