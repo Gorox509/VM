@@ -76,6 +76,8 @@ struct VM_error {
 };
 )
 
+int vm_run(int argc, char *argv[]);
+
 int vm_processor_dump(          struct VM_processor *proc);
 void vm_mem_dump(               struct VM_processor *proc);
 

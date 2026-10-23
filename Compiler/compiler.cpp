@@ -5,9 +5,15 @@
 #include <string.h>
 #include <ctype.h>
 
-#define CHECK_ERR_MSG(err_msg, ...) if ((err = compiler_error(__VA_ARGS__, err_msg)) != COMPILER_OK) return err;
-#define CHECK_ERR(...) if ((err = __VA_ARGS__) != COMPILER_OK) return err;
+#define CHECK_ERR_MSG(err_msg, ...) if ((err = compiler_error(__VA_ARGS__, err_msg)) != COMPILER_OK) return err
+#define CHECK_ERR(...) if ((err = __VA_ARGS__) != COMPILER_OK) return err
 #define MAX_STR_LEN 256
+
+
+static int compiler_get_command(    struct compiler *comp,                  char cmd[MAX_STR_LEN],   int *n_read);
+static int compiler_handle_command( struct compiler *comp, int *cmd_pos,    char cmd[MAX_STR_LEN],   int *n_written);
+static int compiler_handle_argument(struct compiler *comp, int cmd_pos,     int *n_read, int *n_written);
+
 
 
 int main(int argc, char *argv[]) { // TODO: to file
@@ -89,88 +95,117 @@ int compiler_do_compiling(struct compiler *comp) {
     int n_read = 0;
     int n_written = 0;
 
-    char cmd[MAX_STR_LEN] = "";
-
     while (comp->input_buf[n_read] != '\0') {
-        int n_scanned = 0;
-        int n_scanned_arg = 0;
+        char cmd[MAX_STR_LEN] = {};
+        int cmd_position = 0;
 
-        if (sscanf(comp->input_buf + n_read, "%s %n", cmd, &n_scanned) != 1) {
-            compiler_error(COMPILER_CANT_SCAN_CMD, cmd);
-            return COMPILER_CANT_SCAN_CMD;
-        }
-
-        n_read += n_scanned;
-
-        if (!is_known_cmd(cmd)) {
-            compiler_error(COMPILER_UNKNOWN_CMD, cmd);
-            return COMPILER_UNKNOWN_CMD;
-        }
-
-        if (is_label(cmd)) {
-            int n_label = 0;
-            int err = 0;
-            CHECK_ERR_MSG(cmd, get_label_num(cmd, &n_label))
-            CHECK_ERR_MSG(cmd, compiler_add_label(comp, n_label, n_written));
-            continue;
-        }
-
-        char cmd_code = (char) command_code_from_str(cmd);
-        int cmd_pos = n_written;
-        compiler_write_to_code(comp, &n_written, &cmd_code, sizeof(char));
+        compiler_get_command(   comp, cmd, &n_read);
+        compiler_handle_command(comp, &cmd_position, cmd, &n_written);
 
         if (has_argument(cmd)) {
-
-            char arg[MAX_STR_LEN] = "";
-            arg_t dig_arg = 0;
-            bool scanned = 0;
-            int err = COMPILER_OK;
-
-            if (!scanned && sscanf(comp->input_buf + n_read, "%s %n", arg, &n_scanned_arg) == 1 && is_label(arg)) {
-                int n_label = 0;
-                CHECK_ERR_MSG(arg, get_label_num(arg, &n_label))
-                compiler_put_label(comp, n_label, &n_written);
-                scanned = 1;
-            }
-
-
-            if (!scanned && sscanf(comp->input_buf + n_read, "[%[a-dx]+%d] %n", arg, &dig_arg, &n_scanned_arg) == 2) {
-                int reg_code = 0;
-                CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code))
-                CHECK_ERR(handle_mem_reg_const_arg(comp, &n_written, cmd_pos, reg_code, dig_arg))
-                scanned = 1;
-            }
-            if (!scanned && sscanf(comp->input_buf + n_read, "[%[a-dx]] %n", arg, &n_scanned_arg) == 1) {
-                int reg_code = 0;
-                CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code))
-                CHECK_ERR(handle_mem_reg_arg(comp, &n_written, cmd_pos, reg_code))
-                scanned = 1;
-            }
-            if (!scanned && sscanf(comp->input_buf + n_read, "[%d] %n", &dig_arg, &n_scanned_arg) == 1) {
-                CHECK_ERR(handle_mem_const_arg(comp, &n_written, cmd_pos, dig_arg))
-                scanned = 1;
-            }
-            if (!scanned && sscanf(comp->input_buf + n_read, "%[a-dx] %n", arg, &n_scanned_arg) == 1) {
-                int reg_code = 0;
-                CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code))
-                CHECK_ERR(handle_reg_arg(comp, &n_written, cmd_pos, reg_code))
-                scanned = 1;
-            }
-            if (!scanned && sscanf(comp->input_buf + n_read, "%d %n", &dig_arg, &n_scanned_arg) == 1) {
-                CHECK_ERR(handle_const_arg(comp, &n_written, cmd_pos, dig_arg))
-                scanned = 1;
-            }
-
-            if (!scanned) {
-                compiler_error(COMPILER_NO_ARGUMENT, arg);
-                return COMPILER_NO_ARGUMENT;
-            }
-
-            n_read += n_scanned_arg;
+            compiler_handle_argument(comp, cmd_position, &n_read, &n_written);
         }
     }
 
     comp->code_len = n_written;
+
+    return COMPILER_OK;
+}
+
+
+int compiler_get_command(struct compiler *comp, char cmd[MAX_STR_LEN], int *n_read) {
+    assert(comp != NULL);
+    assert(n_read != NULL);
+    assert(cmd != NULL);
+
+    int n_scanned = 0;
+
+    if (sscanf(comp->input_buf + *n_read, "%s %n", cmd, &n_scanned) != 1) {
+        compiler_error(COMPILER_CANT_SCAN_CMD, cmd);
+        return COMPILER_CANT_SCAN_CMD;
+    }
+
+    *n_read += n_scanned;
+
+    return COMPILER_OK;
+}
+
+
+int compiler_handle_command(struct compiler *comp, int *cmd_pos, char cmd[MAX_STR_LEN], int *n_written) {
+    assert(comp != NULL);
+    assert(cmd != NULL);
+
+    bool need_writing = 1;
+
+    if (!is_known_cmd(cmd)) {
+        compiler_error(COMPILER_UNKNOWN_CMD, cmd);
+        return COMPILER_UNKNOWN_CMD;
+    }
+
+    if (is_label(cmd)) {
+        int n_label = 0;
+        int err = 0;
+        CHECK_ERR_MSG(cmd, get_label_num(cmd, &n_label));
+        CHECK_ERR_MSG(cmd, compiler_add_label(comp, n_label, *n_written));
+        need_writing = 0;
+    }
+
+    if (need_writing == 0) return COMPILER_OK;
+
+    char cmd_code = (char) command_code_from_str(cmd);
+    *cmd_pos = *n_written;
+    compiler_write_to_code(comp, n_written, &cmd_code, sizeof(char));
+
+    return COMPILER_OK;
+}
+
+
+int compiler_handle_argument(struct compiler *comp, int cmd_pos, int *n_read, int *n_written) {
+    int n_scanned_arg = 0;
+    char arg[MAX_STR_LEN] = "";
+    arg_t dig_arg = 0;
+    bool scanned = 0;
+    int err = COMPILER_OK;
+
+    if (!scanned && sscanf(comp->input_buf + *n_read, "%s %n", arg, &n_scanned_arg) == 1 && is_label(arg)) {
+        int n_label = 0;
+        CHECK_ERR_MSG(arg, get_label_num(arg, &n_label));
+        compiler_put_label(comp, n_label, n_written);
+        scanned = 1;
+    }
+    if (!scanned && sscanf(comp->input_buf + *n_read, "[%[a-dx]+%d] %n", arg, &dig_arg, &n_scanned_arg) == 2) {
+        int reg_code = 0;
+        CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code));
+        CHECK_ERR(handle_mem_reg_const_arg(comp, n_written, cmd_pos, reg_code, dig_arg));
+        scanned = 1;
+    }
+    if (!scanned && sscanf(comp->input_buf + *n_read, "[%[a-dx]] %n", arg, &n_scanned_arg) == 1) {
+        int reg_code = 0;
+        CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code));
+        CHECK_ERR(handle_mem_reg_arg(comp, n_written, cmd_pos, reg_code));
+        scanned = 1;
+    }
+    if (!scanned && sscanf(comp->input_buf + *n_read, "[%d] %n", &dig_arg, &n_scanned_arg) == 1) {
+        CHECK_ERR(handle_mem_const_arg(comp, n_written, cmd_pos, dig_arg));
+        scanned = 1;
+    }
+    if (!scanned && sscanf(comp->input_buf + *n_read, "%[a-dx] %n", arg, &n_scanned_arg) == 1) {
+        int reg_code = 0;
+        CHECK_ERR_MSG(arg, get_register_code(arg, &reg_code));
+        CHECK_ERR(handle_reg_arg(comp, n_written, cmd_pos, reg_code));
+        scanned = 1;
+    }
+    if (!scanned && sscanf(comp->input_buf + *n_read, "%d %n", &dig_arg, &n_scanned_arg) == 1) {
+        CHECK_ERR(handle_const_arg(comp, n_written, cmd_pos, dig_arg));
+        scanned = 1;
+    }
+
+    if (!scanned) {
+        compiler_error(COMPILER_NO_ARGUMENT, arg);
+        return COMPILER_NO_ARGUMENT;
+    }
+
+    *n_read += n_scanned_arg;
 
     return COMPILER_OK;
 }

@@ -22,7 +22,7 @@ static void vm_regs_dump(struct VM_processor *proc);
 static void put_divisor(FILE *fp);
 
 
-int main(int argc, char *argv[]) {
+int vm_run(int argc, char *argv[]) {
     assert(argv != NULL);
 
     if (argc != 2 && argc != 3) {
