@@ -96,7 +96,7 @@ int vm_make_proc_regs(struct VM_processor *proc) {
 int vm_make_proc_RAM(struct VM_processor *proc) {
     assert(proc != NULL);
 
-    proc->RAM_len = 1024; // TODO: no hard-code
+    proc->RAM_len = 128; // TODO: no hard-code
     proc->RAM = (stack_elem_t *) calloc((size_t) proc->RAM_len, sizeof(stack_elem_t));
     if (proc->RAM == NULL)
         ALLOC_FAILED

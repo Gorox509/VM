@@ -77,8 +77,6 @@ struct VM_error {
 )
 
 int vm_processor_dump(          struct VM_processor *proc);
-void put_divisor(FILE *fp);
-
 
 int vm_do_program(              struct VM_processor *proc);
 int vm_do_instruction(          struct VM_processor *proc);

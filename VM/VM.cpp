@@ -1,3 +1,5 @@
+#include <cstdint>
+#include <stdint.h>
 #include <sys/stat.h>
 #include <assert.h>
 #include <string.h>
@@ -10,6 +12,15 @@
 
 #define RED "\033[31m"
 #define BASE_CLR "\033[0m"
+
+#define RAM_DUMP_ELEMS_IN_LINE 8
+
+
+static void vm_code_dump(struct VM_processor *proc);
+static void vm_regs_dump(struct VM_processor *proc);
+static void vm_mem_dump( struct VM_processor *proc);
+
+static void put_divisor(FILE *fp);
 
 
 int main(int argc, char *argv[]) {
@@ -76,26 +87,12 @@ int vm_processor_dump(struct VM_processor *proc) {
         fprintf(stderr, "Code lines read: %d\n", proc->error->code_line);
     )
     fprintf(stderr, "Current program counter: % d\n", proc->PC);
-    if (proc->code == NULL) {
-        fprintf(stderr, "Code array can not be printed");
-    }
-    else {
-        fprintf(stderr, "[  ");
-        for (int i = 0; i < proc->code_len; ++i) {
-            if (i == proc->PC) fprintf(stderr, RED);
-            fprintf(stderr, "%02hhx, ", proc->code[i]);
-            if (i == proc->PC) fprintf(stderr, BASE_CLR);
-        }
-        fprintf(stderr, "]\n");
-        for (int i = -1; i < proc->PC && i < proc->code_len; ++i) fprintf(stderr, "    ");
-        fprintf(stderr, "^\n");
-    }
 
-    fprintf(stderr, "Register values:\n");
+    vm_code_dump(proc);
 
-    for (int i = 0; i < REGS; ++i) {
-        fprintf(stderr, "register r%dx: 0x%08x\n", i + 1, *((unsigned int *) (proc->regs->regs_arr + i)));
-    }
+    vm_mem_dump(proc);
+
+    vm_regs_dump(proc);
 
     fprintf(stderr, "\nDumping processor stack:");
     stack_dump(proc->stack);
@@ -104,6 +101,55 @@ int vm_processor_dump(struct VM_processor *proc) {
     stack_dump(proc->call_stack);
 
     return VM_OK;
+}
+
+
+void vm_code_dump(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    if (proc->code == NULL) {
+        fprintf(stderr, "Code array can not be printed");
+        return;
+    }
+
+    fprintf(stderr, "[  ");
+    for (int i = 0; i < proc->code_len; ++i) {
+        if (i == proc->PC) fprintf(stderr, RED);
+        fprintf(stderr, "%02hhx, ", proc->code[i]);
+        if (i == proc->PC) fprintf(stderr, BASE_CLR);
+    }
+    fprintf(stderr, "]\n");
+    for (int i = -1; i < proc->PC && i < proc->code_len; ++i) fprintf(stderr, "    ");
+    fprintf(stderr, "^\n");
+}
+
+
+void vm_regs_dump(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    fprintf(stderr, "Register values:\n");
+
+    for (int i = 0; i < REGS; ++i) {
+        fprintf(stderr, "register r%dx: 0x%08x\n", i + 1, *((unsigned int *) (proc->regs->regs_arr + i)));
+    }
+}
+
+
+void vm_mem_dump(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    fprintf(stderr, "RAM:\n");
+
+    for (unsigned int i = 0; (int) i < proc->RAM_len; i += RAM_DUMP_ELEMS_IN_LINE) {
+        fprintf(stderr, "0x%08x:\t", i);
+
+        for (unsigned int j = 0; (int) j < RAM_DUMP_ELEMS_IN_LINE && (int) i + (int) j < proc->RAM_len; ++j) {
+            const char *color = *((unsigned int *) &proc->RAM[i + j]) > 0 ? RED : BASE_CLR;
+
+            fprintf(stderr, "%s0x%0*x " BASE_CLR, color, (int) sizeof(stack_elem_t) * 2, *((unsigned int *) &proc->RAM[i + j]));
+        }
+        fputc('\n', stderr);
+    }
 }
 
 
