@@ -22,9 +22,9 @@ VM: VM_run.o VM.o stack.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
 	@$(CC) $(CFLAGS) $(DEFINES) VM_run.o VM.o stack.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o -o vm.out
 	@rm -f VM_run.o VM.o stack.o VM_command_funcs.o VM_proc_make_funcs.o VM_reading.o
 
-Compiler: compiler.o compiler_make.o
-	@$(CC) $(CFLAGS) $(DEFINES) compiler_make.o compiler.o -o compiler.out
-	@rm -f compiler.o compiler_make.o
+Compiler: compiler_run.o compiler.o compiler_make.o
+	@$(CC) $(CFLAGS) $(DEFINES) compiler_run.o compiler_make.o compiler.o -o compiler.out
+	@rm -f compiler_run.o compiler.o compiler_make.o
 
 VM_run.o:
 	@$(CC) -c $(CFLAGS) $(DEFINES) VM/VM_run.cpp -o VM_run.o
@@ -46,6 +46,8 @@ VM_reading.o:
 
 
 
+compiler_run.o:
+	@$(CC) -c $(CFLAGS) $(DEFINES) Compiler/compiler_run.cpp -o compiler_run.o
 
 compiler.o:
 	@$(CC) -c $(CFLAGS) $(DEFINES) Compiler/compiler.cpp -o compiler.o
