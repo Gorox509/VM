@@ -46,11 +46,10 @@ int vm_do_PUSH(struct VM_processor *proc) {
         if (err != STACK_OK)
             return VM_STACK_ERROR;
 
-        arg_p++;
         return VM_OK;
     }
 
-    stack_push(proc->stack, res, &err); // TODO: to bits
+    stack_push(proc->stack, res, &err);
 
     if (err != STACK_OK)
         return VM_STACK_ERROR;
@@ -91,27 +90,41 @@ int vm_do_POP(struct VM_processor *proc) {
     stack_elem_t res = 0;
     ssize_t err = STACK_OK;
 
-    if (cmd & 0x20 && !(cmd & 0x80)) {
+    stack_elem_t *arg_p = (stack_elem_t *) (proc->code + proc->PC + 1);
+
+    if ((cmd & 0x20) && !(cmd & 0x80)) {
         return VM_POP_CONST;
     }
-
-    if (cmd & 0x40) {
-        GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
+    if ((cmd & 0x20) && (cmd & 0x80)) {
+        GET_ARG(arg_p)
+        res += arg;
+        arg_p++;
+        proc->PC += (int) sizeof(stack_elem_t);
+    }
+    if ((cmd & 0x40) && !(cmd & 0x80)) {
+        GET_ARG(arg_p)
         if (REGS < arg - 1 || arg <= 0) {
             return VM_WRONG_REGISTER_CODE;
         }
         res += arg;
+        arg_p++;
         proc->PC += (int) sizeof(stack_elem_t);
         stack_pop(proc->stack, &proc->regs->regs_arr[res - 1], &err);
     }
+    if ((cmd & 0x40) && (cmd & 0x80)) {
+        GET_ARG(arg_p)
+        if (REGS < arg - 1 || arg <= 0) {
+            return VM_WRONG_REGISTER_CODE;
+        }
+        res += proc->regs->regs_arr[arg - 1];
+        arg_p++;
+        proc->PC += (int) sizeof(stack_elem_t);
+    }
     if (cmd & 0x80) {
-        GET_ARG((stack_elem_t *) (proc->code + proc->PC + 1))
-
-        if (arg > proc->RAM_len || arg <= 0) {
+        if (res > proc->RAM_len || res <= 0) {
             return VM_RAM_OUT_OF_BOUNDS;
         }
-        proc->PC += (int) sizeof(stack_elem_t);
-        stack_pop(proc->stack, &proc->RAM[arg], &err);
+        stack_pop(proc->stack, &proc->RAM[res], &err);
     }
 
     if (err != STACK_OK)
@@ -431,6 +444,15 @@ int vm_do_RET(struct VM_processor *proc) {
 
     if (call_err != STACK_OK)
         return VM_CALL_STACK_ERROR;
+
+    return VM_OK;
+}
+
+
+int vm_do_DRAW(struct VM_processor *proc) {
+    assert(proc != NULL);
+
+    vm_mem_dump(proc);
 
     return VM_OK;
 }

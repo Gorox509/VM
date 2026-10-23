@@ -18,7 +18,6 @@
 
 static void vm_code_dump(struct VM_processor *proc);
 static void vm_regs_dump(struct VM_processor *proc);
-static void vm_mem_dump( struct VM_processor *proc);
 
 static void put_divisor(FILE *fp);
 

@@ -1,0 +1,20 @@
+IN
+POP bx
+PUSH 0
+POP ax
+
+:3
+PUSH 1
+PUSH ax
+ADD
+POP ax
+PUSH ax
+POP [ax]
+
+
+PUSH bx
+PUSH ax
+JB :3
+
+DRAW
+HLT

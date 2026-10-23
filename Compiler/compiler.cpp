@@ -18,6 +18,16 @@ int main(int argc, char *argv[]) { // TODO: to file
     char *file_in  = argv[1];
     char *file_out = argv[2];
 
+    compile(file_in, file_out);
+
+    return 0;
+}
+
+
+int compile(char *file_in, char *file_out) {
+    assert(file_in != NULL);
+    assert(file_out != NULL);
+
     struct stat file_stat = {};
     stat(file_in, &file_stat);
 
@@ -26,7 +36,6 @@ int main(int argc, char *argv[]) { // TODO: to file
     FILE *fp_in = fopen(file_in, "rb");
     compiler_read_file_to_buffer(fp_in, comp, (size_t) file_stat.st_blksize);
     fclose(fp_in);
-
 
     compiler_do_compiling(comp);
     compiler_do_compiling(comp);

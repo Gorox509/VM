@@ -35,6 +35,7 @@ struct compiler {
     int labels_size = 0;
 };
 
+int compile(char *file_in, char *file_out);
 
 int compiler_read_file_to_buffer(   FILE *fp,       struct compiler *comp,  size_t block_size);
 int compiler_do_compiling(                          struct compiler *comp);

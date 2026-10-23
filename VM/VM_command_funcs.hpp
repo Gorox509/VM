@@ -21,6 +21,8 @@ int vm_do_IN(       struct VM_processor *proc);
 int vm_do_CALL(     struct VM_processor *proc);
 int vm_do_RET(      struct VM_processor *proc);
 
+int vm_do_DRAW(     struct VM_processor *proc);
+
 int vm_do_HLT(      struct VM_processor *proc);
 
 #endif
